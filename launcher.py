@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import webbrowser
+import app
 
 # ── Fix paths when running as a PyInstaller .exe ──────────────────────────────
 if getattr(sys, 'frozen', False):

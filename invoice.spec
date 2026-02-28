@@ -16,6 +16,7 @@ a = Analysis(
         ('fonts',      'fonts'),
     ],
     hiddenimports=[
+        'app',
         'flask',
         'flask_sqlalchemy',
         'sqlalchemy',
@@ -80,10 +81,10 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,        # No black console window
+    console=False,        
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,            # Add icon path here if you have one, e.g. 'static/icon.ico'
+    icon=None,            
 )
