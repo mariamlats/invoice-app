@@ -177,9 +177,9 @@ def build_pdf(invoice):
 
     # ── Row 5: Service + amount ───────────────────────────────────────────────
     service = (
-        'უძრავი ქონების (სასაწყობე ფართი)<br/>'
-        'დროებით სარგებლობაში გადაცემა<br/>'
-        '(თანმდევი სერვისებითა და მომსახურებით)'
+        'მომსახურების გაწევა და უძრავი ქონების დროებით<br/>'
+        'სარგებლობაში გადაცემა (თანმდევი სერვისებით<br/>'
+        'და მომსახურებით)'
     )
     t5 = Table([[
         p(service, leading=17, size=11),
@@ -208,28 +208,38 @@ def build_pdf(invoice):
     # ── Row 7: Executor info + signature ──────────────────────────────────────
     executor = (
         '<b>შპს დემიქსი</b> &nbsp; ს/კ 405328998<br/>'
-        'ქინძმარაულის ქუჩა #17, 0145<br/>'
-        'ტელ: 555 90 20 23<br/>'
+        'ქინძმარაულის ქუჩა #17<br/>'
+        'ტელ: 599 787 453<br/>'
         'მეილი: info@demix.ge<br/>'
         'ბანკი: JSC &quot;Bank of Georgia&quot;<br/>'
         'Bank code: BAGAGE22<br/>'
-        'A/A: GE30BG0000000161105533<br/>'
-        '<br/>დირექტორი<br/>'
-        'გიორგი გოგოლაძე'
+        'A/A: GE30BG0000000161105533'
     )
     cw7     = [usable_w * 0.62, usable_w * 0.38]
-    sig_cell = Image(SIG_PATH, width=6*cm, height=6*cm) if os.path.exists(SIG_PATH) else p('')
+    # Stack director text and signature in same cell with a nested table
+    sig_img = Image(SIG_PATH, width=6*cm, height=6*cm) if os.path.exists(SIG_PATH) else p('')
+    right_cell = Table([
+        [p('დირექტორი<br/>გიორგი გოგოლაძე', size=10, leading=15, align='CENTER')],
+        [sig_img],
+    ], colWidths=[usable_w * 0.38])
+    right_cell.setStyle(TableStyle([
+        ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN',        (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING',    (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LEFTPADDING',   (0,0), (-1,-1), 0),
+        ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+    ]))
 
-    t7 = Table([[p(executor, size=10, leading=15), sig_cell]], colWidths=cw7)
+    t7 = Table([[p(executor, size=10, leading=15), right_cell]], colWidths=cw7)
     t7.setStyle(TableStyle([
         ('BACKGROUND',    (0,0), (-1,-1), colors.white),
         ('BOX',           (0,0), (-1,-1), 0.5, GRAY),
         ('LINEAFTER',     (0,0), (0,-1),  0.5, GRAY),
         ('TOPPADDING',    (0,0), (-1,-1), 12),
         ('BOTTOMPADDING', (0,0), (-1,-1), 12),
-        ('LEFTPADDING',   (0,0), (0,-1),  10),
-        ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN',         (1,0), (1,-1),  'CENTER'),
+        ('LEFTPADDING',   (0,0), (0,0),   10),
+        ('VALIGN',        (0,0), (-1,-1), 'TOP'),
     ]))
 
     doc.build([t1, t2, t3, t4, t5, t6, t7])
