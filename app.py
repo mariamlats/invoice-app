@@ -323,7 +323,7 @@ def send_invoice(inv_id):
             inv.send_error = 'Account info@sawkobi.ge not found in Outlook'
             db.session.commit()
             return jsonify({'error': 'Account info@sawkobi.ge not found in Outlook. Please add this account and try again.'}), 400
-        mail.To       = inv.company.email
+        mail.To       = '; '.join([e.strip() for e in inv.company.email.split(',') if e.strip()])
         mail.Subject  = 'Invoice N%d - შპს დემიქსი' % inv.number
         # Force the correct sender account
         mail._oleobj_.Invoke(*(64209, 0, 8, 0, sender_account))
