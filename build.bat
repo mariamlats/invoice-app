@@ -9,7 +9,7 @@ pip install flask flask-sqlalchemy reportlab pywin32 psycopg2-binary pyinstaller
 
 echo.
 echo Step 2: Building .exe...
-pyinstaller invoice.spec --clean
+python -m PyInstaller invoice.spec --clean
 
 echo.
 echo ================================
