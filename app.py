@@ -18,7 +18,7 @@ if getattr(sys, 'frozen', False):
     )
 else:
     app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:DemixInvoice1@db.tocstcvgltxhzuuizwrx.supabase.co:5432/postgres')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres.tocstcvgltxhzuuizwrx:DemixInvoice1@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)

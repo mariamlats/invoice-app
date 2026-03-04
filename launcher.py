@@ -3,7 +3,6 @@ import os
 import threading
 import time
 import webbrowser
-import app
 
 # ── Fix paths when running as a PyInstaller .exe ──────────────────────────────
 if getattr(sys, 'frozen', False):
@@ -18,7 +17,7 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-os.environ.setdefault('DATABASE_URL', 'postgresql://postgres:DemixInvoice1@db.tocstcvgltxhzuuizwrx.supabase.co:5432/postgres')
+os.environ.setdefault('DATABASE_URL', 'postgresql://postgres.tocstcvgltxhzuuizwrx:DemixInvoice1@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres')
 
 PORT = 5000
 URL  = 'http://localhost:%d' % PORT
