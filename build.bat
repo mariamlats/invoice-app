@@ -5,11 +5,11 @@ echo ================================
 echo.
 
 echo Step 1: Installing dependencies...
-pip install flask flask-sqlalchemy reportlab pywin32 psycopg2-binary pyinstaller
+pip install flask flask-sqlalchemy reportlab pywin32 psycopg2-binary pyinstaller python-dotenv
 
 echo.
 echo Step 2: Building .exe...
-python -m PyInstaller invoice.spec --clean
+pyinstaller invoice.spec --clean
 
 echo.
 echo ================================
