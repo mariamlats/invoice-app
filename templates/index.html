@@ -250,7 +250,7 @@
           <span class="grand-total-amount" id="grand-total-display">0.00 ₾</span>
         </div>
         <label style="display:flex;align-items:center;gap:10px;margin-top:14px;cursor:pointer;font-size:13px;color:var(--text-soft);">
-          <input type="checkbox" id="show-details" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
+          <input type="checkbox" id="show-details" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
           ინვოისში ვაჩვენო რაოდენობა და ერთეული
         </label>
       </div>
@@ -618,7 +618,7 @@
         </div>
         <div>
           <label class="form-label">რაოდენობა</label>
-          <input class="form-input" id="prow-qty-${id}" type="number" min="0" step="any" placeholder="0" oninput="recalcRow(${id})"/>
+          <input class="form-input" id="prow-qty-${id}" type="number" min="0" step="any" placeholder="1" value="1" oninput="recalcRow(${id})"/>
         </div>
         <div>
           <label class="form-label">ფასი (₾)</label>
