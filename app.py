@@ -691,7 +691,7 @@ def create_product():
     d  = request.get_json()
     pr = Product(tenant_id=u.tenant_id,
                  name=d['name'].strip(), unit=d['unit'].strip(),
-                 price=d['price'].strip(), vat=d.get('vat','no'))
+                 price=d.get('price','').strip() or '0', vat=d.get('vat','no'))
     db.session.add(pr); db.session.commit()
     return jsonify(pr.to_dict()), 201
 
@@ -702,7 +702,7 @@ def update_product(pid):
     pr = Product.query.filter_by(id=pid, tenant_id=u.tenant_id).first_or_404()
     d  = request.get_json()
     pr.name=d['name'].strip(); pr.unit=d['unit'].strip()
-    pr.price=d['price'].strip(); pr.vat=d.get('vat','no')
+    pr.price=d.get('price','').strip() or '0'; pr.vat=d.get('vat','no')
     db.session.commit()
     return jsonify(pr.to_dict())
 
@@ -863,8 +863,8 @@ def change_email():
     email = (d.get('new_email') or '').strip().lower()
     if not check_password(cur, u.password_hash):
         return jsonify({'error': 'მიმდინარე პაროლი არასწორია'}), 400
-    if '@' not in email:
-        return jsonify({'error': 'მეილი არასწორია'}), 400
+    if len(email) < 3:
+        return jsonify({'error': 'მინიმუმ 3 სიმბოლო'}), 400
     if User.query.filter(User.email == email, User.id != u.id).first():
         return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
     u.email = email
@@ -895,8 +895,8 @@ def admin_reset_email(tid):
         return jsonify({'error': 'Forbidden'}), 403
     d     = request.get_json()
     email = (d.get('new_email') or '').strip().lower()
-    if '@' not in email:
-        return jsonify({'error': 'მეილი არასწორია'}), 400
+    if len(email) < 3:
+        return jsonify({'error': 'მინიმუმ 3 სიმბოლო'}), 400
     if User.query.filter(User.email == email, User.tenant_id != tid).first():
         return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
     u = User.query.filter_by(tenant_id=tid).first()

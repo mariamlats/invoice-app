@@ -99,7 +99,7 @@
 
     .product-rows { display: flex; flex-direction: column; gap: 12px; }
     .product-row { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; position: relative; }
-    .product-row-grid { display: grid; grid-template-columns: 1fr 100px 110px 110px; gap: 10px; align-items: end; }
+    .product-row-grid { display: grid; grid-template-columns: 2fr 90px 100px 100px; gap: 10px; align-items: end; }
     .product-row-total { text-align: right; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); margin-top: 8px; }
     .remove-row-btn { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.14s; }
     .remove-row-btn:hover { color: var(--danger); background: rgba(192,97,74,0.1); }
@@ -217,7 +217,7 @@
     </div>
     <div class="search-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="company-search-filter" placeholder="კლიენტის ძიება..." oninput="renderCompanies()"/>
+      <input type="text" id="company-search-filter" placeholder="კლიენტის ძიება..." autocomplete="new-password" oninput="renderCompanies()"/>
     </div>
     <div class="cards-grid" id="companies-grid"></div>
   </section>
@@ -260,7 +260,7 @@
         <div class="form-group">
           <label class="form-label">კომპანია</label>
           <div class="dropdown-wrap">
-            <input class="form-input" id="company-search" placeholder="მოძებნეთ კომპანია..." autocomplete="off" oninput="filterCompanyDropdown()" onfocus="showCompanyDropdown()"/>
+            <input class="form-input" id="company-search" placeholder="მოძებნეთ კომპანია..." autocomplete="new-password" oninput="filterCompanyDropdown()" onfocus="showCompanyDropdown()"/>
             <div class="dropdown-list" id="company-dropdown"></div>
           </div>
           <input type="hidden" id="inv-company"/>
@@ -316,43 +316,43 @@
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">კომპანიის სახელი (ინვოისში)</label>
-            <input class="form-input" id="s-footer-name" placeholder="შპს დემიქსი"/>
+            <input class="form-input" id="s-footer-name" placeholder="შპს კომპანია" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">ს/კ (საიდენტიფიკაციო კოდი)</label>
-            <input class="form-input" id="s-footer-vat" placeholder="405328998"/>
+            <input class="form-input" id="s-footer-vat" placeholder="123456789" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">მისამართი</label>
-            <input class="form-input" id="s-footer-address" placeholder="ქინძმარაულის ქ. #17"/>
+            <input class="form-input" id="s-footer-address" placeholder="ქ. თბილისი, ქუჩა #1" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">ტელეფონი</label>
-            <input class="form-input" id="s-footer-phone" placeholder="599 000 000"/>
+            <input class="form-input" id="s-footer-phone" placeholder="599 000 000" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">ელ. მეილი</label>
-            <input class="form-input" id="s-footer-email" placeholder="info@company.ge"/>
+            <input class="form-input" id="s-footer-email" placeholder="info@company.ge" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">დირექტორი</label>
-            <input class="form-input" id="s-footer-director" placeholder="სახელი გვარი"/>
+            <input class="form-input" id="s-footer-director" placeholder="სახელი გვარი" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">ბანკი</label>
-            <input class="form-input" id="s-footer-bank" placeholder='JSC "Bank of Georgia"'/>
+            <input class="form-input" id="s-footer-bank" placeholder='JSC "Bank of Georgia"' autocomplete="off"/>
           </div>
           <div class="form-group">
             <label class="form-label">Bank Code (SWIFT)</label>
-            <input class="form-input" id="s-footer-bank-code" placeholder="BAGAGE22"/>
+            <input class="form-input" id="s-footer-bank-code" placeholder="BAGAGE22" autocomplete="off"/>
           </div>
           <div class="form-group" style="grid-column: 1/-1;">
             <label class="form-label">ანგარიში (IBAN)</label>
-            <input class="form-input" id="s-footer-iban" placeholder="GE30BG0000000161105533"/>
+            <input class="form-input" id="s-footer-iban" placeholder="GE00XX0000000000000000" autocomplete="off"/>
           </div>
           <div class="form-group" style="grid-column: 1/-1;">
             <label class="form-label">ინვოისის საწყისი ნომერი</label>
-            <input class="form-input" id="s-invoice-prefix" placeholder="30000" type="number"/>
+            <input class="form-input" id="s-invoice-prefix" placeholder="30000" type="number" autocomplete="off"/>
             <p class="form-hint">პირველი ინვოისი იქნება ამ ნომერი + 1</p>
           </div>
         </div>
@@ -378,11 +378,11 @@
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label">გამგზავნი მეილი</label>
-            <input class="form-input" id="s-smtp-email" type="email" placeholder="info@company.ge" oninput="autoFillSmtp()"/>
+            <input class="form-input" id="s-smtp-email" type="email" placeholder="info@company.ge" autocomplete="new-password" oninput="autoFillSmtp()"/>
           </div>
           <div class="form-group">
             <label class="form-label">პაროლი / App Password</label>
-            <input class="form-input" id="s-smtp-password" type="text" placeholder="პაროლი ან 16-სიმბოლიანი App Password"/>
+            <input class="form-input" id="s-smtp-password" type="text" placeholder="პაროლი ან 16-სიმბოლიანი App Password" autocomplete="new-password"/>
           </div>
           <div class="form-group">
             <label class="form-label">SMTP სერვერი</label>
@@ -409,8 +409,8 @@
       <div class="settings-section">
         <div class="settings-section-title">მეილის შეცვლა</div>
         <div class="form-group">
-          <label class="form-label">ახალი მეილი</label>
-          <input class="form-input" id="s-email-new" type="email" placeholder="new@example.com"/>
+          <label class="form-label">ახალი მეილი ან მომხმარებელი</label>
+          <input class="form-input" id="s-email-new" type="text" placeholder="new@example.com ან username" autocomplete="new-password"/>
         </div>
         <div class="form-group">
           <label class="form-label">მიმდინარე პაროლი (დასადასტურებლად)</label>
@@ -772,7 +772,7 @@
   async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const payload = { name: document.getElementById('p-name').value.trim(), unit: document.getElementById('p-unit').value, price: document.getElementById('p-price').value.trim(), vat: document.getElementById('p-vat').value };
-    if (!payload.name || !payload.price) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (!payload.name) { showToast('სახელი სავალდებულოა', 'error'); return; }
     try {
       const res = await fetch(id ? `/api/products/${id}` : '/api/products', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
