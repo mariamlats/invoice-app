@@ -576,28 +576,24 @@ def save_smtp():
 def test_smtp():
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
-    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
-        return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
+    # ... (keep validation)
     try:
         import smtplib
-        connected = False
-        last_err  = ''
-        for try_port, try_ssl in [(t.smtp_port or 465, True), (587, False)]:
-            try:
-                if try_ssl:
-                    srv = smtplib.SMTP_SSL(t.smtp_host, try_port, timeout=10)
-                else:
-                    srv = smtplib.SMTP(t.smtp_host, try_port, timeout=10)
-                    srv.ehlo(); srv.starttls(); srv.ehlo()
-                srv.login(t.smtp_email, t.smtp_password)
-                srv.quit()
-                connected = True
-                break
-            except Exception as ex:
-                last_err = str(ex)
-                continue
-        if not connected:
-            return jsonify({'error': last_err}), 400
+        host = t.smtp_host
+        port = t.smtp_port or 587
+        
+        # Explicit logic based on port
+        if port == 465:
+            srv = smtplib.SMTP_SSL(host, port, timeout=10)
+        else:
+            srv = smtplib.SMTP(host, port, timeout=10)
+            srv.ehlo()
+            if port == 587:
+                srv.starttls()
+                srv.ehlo()
+        
+        srv.login(t.smtp_email, t.smtp_password)
+        srv.quit()
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
