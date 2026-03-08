@@ -576,32 +576,31 @@ def save_smtp():
 def test_smtp():
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
-    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
-        return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
-    
-    try:
-        import smtplib
-        host = t.smtp_host
-        port = int(t.smtp_port or 587)
-        
-        # Immediate connection based on port
-        if port == 465:
-            # Port 465 uses Implicit SSL
-            srv = smtplib.SMTP_SSL(host, port, timeout=10)
-        else:
-            # Port 587 uses STARTTLS
-            srv = smtplib.SMTP(host, port, timeout=10)
-            srv.ehlo()
-            if port == 587:
+    if t.smtp_email and t.smtp_password and t.smtp_host:
+        try:
+            import smtplib
+            host = t.smtp_host
+            port = int(t.smtp_port or 587)
+            if port == 465:
+                srv = smtplib.SMTP_SSL(host, port, timeout=10)
+            else:
+                srv = smtplib.SMTP(host, port, timeout=10)
+                srv.ehlo()
                 srv.starttls()
                 srv.ehlo()
-        
-        srv.login(t.smtp_email, t.smtp_password)
-        srv.quit()
-        return jsonify({'ok': True})
-    except Exception as e:
-        # Returns the specific error (e.g., Auth failed, or Connection refused)
-        return jsonify({'error': str(e)}), 400
+            srv.login(t.smtp_email, t.smtp_password)
+            srv.quit()
+            return jsonify({'ok': True})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    else:
+        try:
+            import win32com.client
+            outlook = win32com.client.Dispatch('Outlook.Application')
+            outlook.GetNamespace('MAPI')
+            return jsonify({'ok': True})
+        except Exception as e:
+            return jsonify({'error': f'Outlook მიუწვდომელია: {str(e)}'}), 400
 
 @app.route('/api/invoices/<int:inv_id>/send', methods=['POST'])
 @login_required
@@ -609,42 +608,51 @@ def send_invoice(inv_id):
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
     inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
-    
-    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
-        return jsonify({'error': 'SMTP settings not configured'}), 400
 
     try:
-        import smtplib
-        from email.message import EmailMessage
-        
-        # 1. Create PDF
         pdf_data = create_invoice_pdf(inv, t)
-        
-        # 2. Build Email
-        msg = EmailMessage()
-        msg['Subject'] = f"ინვოისი #{inv.invoice_number}"
-        msg['From'] = t.smtp_email
-        msg['To'] = inv.client_email
-        msg.set_content(f"გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი #{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}")
-        msg.add_attachment(pdf_data, maintype='application', subtype='pdf', filename=f"invoice_{inv.invoice_number}.pdf")
-        
-        # 3. Secure Connection Logic
-        host = t.smtp_host
-        port = int(t.smtp_port or 587)
-        
-        if port == 465:
-            srv = smtplib.SMTP_SSL(host, port, timeout=15)
-        else:
-            srv = smtplib.SMTP(host, port, timeout=15)
-            srv.ehlo()
-            if port == 587:
+
+        if t.smtp_email and t.smtp_password and t.smtp_host:
+            # ── SMTP path (cloud / any platform) ──────────────────────────
+            import smtplib
+            from email.message import EmailMessage
+            msg = EmailMessage()
+            msg['Subject'] = f'ინვოისი #{inv.invoice_number}'
+            msg['From']    = t.smtp_email
+            msg['To']      = inv.client_email
+            msg.set_content(f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
+                            f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
+            msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
+                               filename=f'invoice_{inv.invoice_number}.pdf')
+            host = t.smtp_host
+            port = int(t.smtp_port or 587)
+            if port == 465:
+                srv = smtplib.SMTP_SSL(host, port, timeout=15)
+            else:
+                srv = smtplib.SMTP(host, port, timeout=15)
+                srv.ehlo()
                 srv.starttls()
                 srv.ehlo()
-        
-        srv.login(t.smtp_email, t.smtp_password)
-        srv.send_message(msg)
-        srv.quit()
-        
+            srv.login(t.smtp_email, t.smtp_password)
+            srv.send_message(msg)
+            srv.quit()
+        else:
+            # ── Outlook path (local Windows only) ─────────────────────────
+            import win32com.client, tempfile, os
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf',
+                                              prefix=f'invoice_{inv.invoice_number}_')
+            tmp.write(pdf_data)
+            tmp.close()
+            outlook = win32com.client.Dispatch('Outlook.Application')
+            mail = outlook.CreateItem(0)
+            mail.To      = inv.client_email
+            mail.Subject = f'ინვოისი #{inv.invoice_number}'
+            mail.Body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
+                            f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
+            mail.Attachments.Add(tmp.name)
+            mail.Send()
+            os.unlink(tmp.name)
+
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
