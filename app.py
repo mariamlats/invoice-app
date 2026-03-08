@@ -327,7 +327,7 @@ def build_pdf(invoice, show_details=True):
             p(str(item.get('price','')), align='CENTER', size=10),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''),p(''),p(''),p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' ₾', bold=True, align='CENTER', size=11)]
+        total_row = [p(''),p(''),p(''),p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
     else:
         cw = [uw*0.06, uw*0.74, uw*0.20]
         hdr = [
@@ -340,7 +340,7 @@ def build_pdf(invoice, show_details=True):
             p(item.get('name',''), size=10, leading=14),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' ₾', bold=True, align='CENTER', size=11)]
+        total_row = [p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
 
     rows = [hdr] + data_rows + [total_row]
     nr   = len(rows)
@@ -778,6 +778,24 @@ def change_password():
     db.session.commit()
     return jsonify({'ok': True})
 
+@app.route('/api/auth/change-email', methods=['POST'])
+@login_required
+def change_email():
+    u     = current_user()
+    d     = request.get_json()
+    cur   = d.get('current_password', '')
+    email = (d.get('new_email') or '').strip().lower()
+    if not check_password(cur, u.password_hash):
+        return jsonify({'error': 'მიმდინარე პაროლი არასწორია'}), 400
+    if '@' not in email:
+        return jsonify({'error': 'მეილი არასწორია'}), 400
+    if User.query.filter(User.email == email, User.id != u.id).first():
+        return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
+    u.email = email
+    db.session.commit()
+    session['user_id'] = u.id  # refresh session
+    return jsonify({'ok': True, 'new_email': email})
+
 @app.route('/api/admin/tenants/<int:tid>/reset-password', methods=['POST'])
 @login_required
 def admin_reset_password(tid):
@@ -788,6 +806,29 @@ def admin_reset_password(tid):
     if len(new) < 6:
         return jsonify({'error': 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს'}), 400
     u = User.query.filter_by(tenant_id=tid).first()
+    if not u:
+        return jsonify({'error': 'User not found'}), 404
+    u.password_hash = hash_password(new)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/tenants/<int:tid>/reset-email', methods=['POST'])
+@login_required
+def admin_reset_email(tid):
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d     = request.get_json()
+    email = (d.get('new_email') or '').strip().lower()
+    if '@' not in email:
+        return jsonify({'error': 'მეილი არასწორია'}), 400
+    if User.query.filter(User.email == email, User.tenant_id != tid).first():
+        return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
+    u = User.query.filter_by(tenant_id=tid).first()
+    if not u:
+        return jsonify({'error': 'User not found'}), 404
+    u.email = email
+    db.session.commit()
+    return jsonify({'ok': True})
     if not u:
         return jsonify({'error': 'User not found'}), 404
     u.password_hash = hash_password(new)

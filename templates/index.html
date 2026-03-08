@@ -373,6 +373,21 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">მეილის შეცვლა</div>
+        <div class="form-group">
+          <label class="form-label">ახალი მეილი</label>
+          <input class="form-input" id="s-email-new" type="email" placeholder="new@example.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">მიმდინარე პაროლი (დასადასტურებლად)</label>
+          <input class="form-input" id="s-email-pwd" type="text" placeholder="პაროლი"/>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="changeEmail()">მეილის შეცვლა</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">პაროლის შეცვლა</div>
         <div class="form-group">
           <label class="form-label">მიმდინარე პაროლი</label>
@@ -418,15 +433,19 @@
 <!-- ── Reset Password Modal (admin) ── -->
 <div class="modal-overlay" id="reset-pwd-modal">
   <div class="modal" style="max-width:400px;">
-    <h3>პაროლის შეცვლა</h3>
+    <h3>შესვლის მონაცემების შეცვლა</h3>
     <input type="hidden" id="reset-pwd-tenant-id"/>
     <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;" id="reset-pwd-label"></p>
     <div class="form-group">
-      <label class="form-label">ახალი პაროლი</label>
-      <input class="form-input" id="reset-pwd-new" type="text" placeholder="ახალი პაროლი"/>
+      <label class="form-label">ახალი მეილი (სურვილისამებრ)</label>
+      <input class="form-input" id="reset-email-new" type="email" placeholder="დატოვეთ ცარიელი თუ არ იცვლება"/>
     </div>
     <div class="form-group">
-      <label class="form-label">გაიმეორეთ</label>
+      <label class="form-label">ახალი პაროლი (სურვილისამებრ)</label>
+      <input class="form-input" id="reset-pwd-new" type="text" placeholder="დატოვეთ ცარიელი თუ არ იცვლება"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">გაიმეორეთ პაროლი</label>
       <input class="form-input" id="reset-pwd-confirm" type="text" placeholder="გაიმეორეთ"/>
     </div>
     <div class="form-actions">
@@ -1103,6 +1122,22 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Email change (user) ──────────────────────────────────────────────────────
+  async function changeEmail() {
+    const newEmail = document.getElementById('s-email-new').value.trim();
+    const pwd      = document.getElementById('s-email-pwd').value;
+    if (!newEmail || !pwd) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    try {
+      const res  = await fetch('/api/auth/change-email', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_email: newEmail, current_password: pwd }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
+      document.getElementById('s-email-new').value = '';
+      document.getElementById('s-email-pwd').value = '';
+      document.getElementById('user-email-display').textContent = data.new_email;
+      showToast('მეილი შეიცვალა', 'success');
+    } catch { showToast('შეცდომა', 'error'); }
+  }
+
   // ── Password change (user) ───────────────────────────────────────────────────
   async function changePassword() {
     const current = document.getElementById('s-pwd-current').value;
@@ -1126,23 +1161,31 @@
   function openResetPassword(tenantId, email) {
     document.getElementById('reset-pwd-tenant-id').value = tenantId;
     document.getElementById('reset-pwd-label').textContent = email;
+    document.getElementById('reset-email-new').value = '';
     document.getElementById('reset-pwd-new').value = '';
     document.getElementById('reset-pwd-confirm').value = '';
     openModal('reset-pwd-modal');
   }
   async function doResetPassword() {
     const tenantId = document.getElementById('reset-pwd-tenant-id').value;
+    const newEmail = document.getElementById('reset-email-new').value.trim();
     const newPwd   = document.getElementById('reset-pwd-new').value;
     const confirm  = document.getElementById('reset-pwd-confirm').value;
-    if (!newPwd || !confirm) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
-    if (newPwd !== confirm) { showToast('პაროლები არ ემთხვევა', 'error'); return; }
-    if (newPwd.length < 6) { showToast('პაროლი მინიმუმ 6 სიმბოლო', 'error'); return; }
+    if (!newEmail && !newPwd) { showToast('მინიმუმ ერთი ველი შეავსეთ', 'error'); return; }
+    if (newPwd && newPwd !== confirm) { showToast('პაროლები არ ემთხვევა', 'error'); return; }
+    if (newPwd && newPwd.length < 6) { showToast('პაროლი მინიმუმ 6 სიმბოლო', 'error'); return; }
     try {
-      const res  = await fetch(`/api/admin/tenants/${tenantId}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_password: newPwd }) });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
+      if (newPwd) {
+        const r = await fetch(`/api/admin/tenants/${tenantId}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_password: newPwd }) });
+        if (!r.ok) { const d = await r.json(); showToast(d.error || 'შეცდომა', 'error'); return; }
+      }
+      if (newEmail) {
+        const r = await fetch(`/api/admin/tenants/${tenantId}/reset-email`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_email: newEmail }) });
+        if (!r.ok) { const d = await r.json(); showToast(d.error || 'შეცდომა', 'error'); return; }
+      }
       closeModal('reset-pwd-modal');
-      showToast('პაროლი შეიცვალა', 'success');
+      showToast('მონაცემები განახლდა', 'success');
+      loadTenants();
     } catch { showToast('შეცდომა', 'error'); }
   }
 
