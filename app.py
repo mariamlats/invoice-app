@@ -603,6 +603,7 @@ def test_smtp():
         return jsonify({'error': str(e)}), 400
 
 
+@app.route('/api/settings/signature', methods=['POST'])
 @login_required
 def upload_signature():
     u = current_user()
