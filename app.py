@@ -580,8 +580,14 @@ def test_smtp():
         return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
     try:
         import smtplib
-        with smtplib.SMTP_SSL(t.smtp_host, t.smtp_port or 465, timeout=10) as server:
-            server.login(t.smtp_email, t.smtp_password)
+        port = t.smtp_port or 465
+        try:
+            with smtplib.SMTP_SSL(t.smtp_host, 465, timeout=10) as server:
+                server.login(t.smtp_email, t.smtp_password)
+        except Exception:
+            with smtplib.SMTP(t.smtp_host, 587, timeout=10) as server:
+                server.ehlo(); server.starttls(); server.ehlo()
+                server.login(t.smtp_email, t.smtp_password)
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -771,9 +777,30 @@ def send_invoice(inv_id):
         part.add_header('Content-Disposition', f'attachment; filename="invoice-{inv.number}.pdf"')
         msg.attach(part)
 
-        with smtplib.SMTP_SSL(tenant.smtp_host, tenant.smtp_port or 465, timeout=15) as server:
-            server.login(tenant.smtp_email, tenant.smtp_password)
-            server.sendmail(tenant.smtp_email, recipients, msg.as_string())
+    def try_send(host, port, use_ssl):
+        import smtplib
+        if use_ssl:
+            server = smtplib.SMTP_SSL(host, port, timeout=15)
+        else:
+            server = smtplib.SMTP(host, port, timeout=15)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+        server.login(tenant.smtp_email, tenant.smtp_password)
+        server.sendmail(tenant.smtp_email, recipients, msg.as_string())
+        server.quit()
+
+    port = tenant.smtp_port or 465
+    host = tenant.smtp_host
+    try:
+        # Try configured port first, fallback to 587 STARTTLS
+        if port == 465:
+            try:
+                try_send(host, 465, use_ssl=True)
+            except Exception:
+                try_send(host, 587, use_ssl=False)
+        else:
+            try_send(host, port, use_ssl=False)
 
         inv.sent = True; inv.send_error = None
         db.session.commit()
