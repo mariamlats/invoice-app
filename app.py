@@ -108,7 +108,7 @@ def check_password(password: str, stored: str) -> bool:
 class Tenant(db.Model):
     __tablename__ = 'tenant'
     id                   = db.Column(db.Integer, primary_key=True)
-    name                 = db.Column(db.String(255), nullable=False)          # company display name
+    name                 = db.Column(db.String(255), nullable=False)
     # Invoice footer fields
     footer_name          = db.Column(db.String(255), nullable=True)
     footer_vat           = db.Column(db.String(100), nullable=True)
@@ -119,8 +119,13 @@ class Tenant(db.Model):
     footer_bank_code     = db.Column(db.String(100), nullable=True)
     footer_iban          = db.Column(db.String(100), nullable=True)
     footer_director      = db.Column(db.String(255), nullable=True)
-    signature_path       = db.Column(db.String(500), nullable=True)           # Supabase path
+    signature_path       = db.Column(db.String(500), nullable=True)
     invoice_prefix       = db.Column(db.Integer, nullable=False, default=30000)
+    # SMTP settings
+    smtp_email           = db.Column(db.String(255), nullable=True)
+    smtp_password        = db.Column(db.String(500), nullable=True)
+    smtp_host            = db.Column(db.String(255), nullable=True)
+    smtp_port            = db.Column(db.Integer, nullable=True, default=465)
     created_at           = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -133,6 +138,10 @@ class Tenant(db.Model):
             'footer_director': self.footer_director,
             'has_signature': bool(self.signature_path),
             'invoice_prefix': self.invoice_prefix,
+            'smtp_email': self.smtp_email or '',
+            'smtp_host': self.smtp_host or '',
+            'smtp_port': self.smtp_port or 465,
+            'smtp_configured': bool(self.smtp_email and self.smtp_password),
         }
 
 
@@ -546,7 +555,38 @@ def save_settings():
     db.session.commit()
     return jsonify({'ok': True})
 
-@app.route('/api/settings/signature', methods=['POST'])
+@app.route('/api/settings/smtp', methods=['PUT'])
+@login_required
+def save_smtp():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    d = request.get_json()
+    t.smtp_email    = (d.get('smtp_email') or '').strip()
+    t.smtp_host     = (d.get('smtp_host') or '').strip()
+    t.smtp_port     = int(d.get('smtp_port') or 465)
+    # Only update password if a new one was provided
+    new_pwd = (d.get('smtp_password') or '').strip()
+    if new_pwd:
+        t.smtp_password = new_pwd
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/settings/smtp/test', methods=['POST'])
+@login_required
+def test_smtp():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
+        return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
+    try:
+        import smtplib
+        with smtplib.SMTP_SSL(t.smtp_host, t.smtp_port or 465, timeout=10) as server:
+            server.login(t.smtp_email, t.smtp_password)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
 @login_required
 def upload_signature():
     u = current_user()
@@ -698,54 +738,50 @@ def generate_invoice():
 @app.route('/api/invoices/<int:inv_id>/send', methods=['POST'])
 @login_required
 def send_invoice(inv_id):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email import encoders
+
     u   = current_user()
     inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
     if inv.sent:
         return jsonify({'error': 'Already sent'}), 400
-    pdf_bytes = build_pdf(inv)
-    tmp_path  = os.path.join(DATA_DIR, 'invoice-%d.pdf' % inv.number)
-    with open(tmp_path, 'wb') as f:
-        f.write(pdf_bytes)
+
+    tenant = db.session.get(Tenant, u.tenant_id)
+    if not tenant.smtp_email or not tenant.smtp_password or not tenant.smtp_host:
+        return jsonify({'error': 'გთხოვთ ჯერ შეავსოთ ელ. ფოსტის პარამეტრები (პარამეტრები → ელ. ფოსტა)'}), 400
+
+    pdf_bytes  = build_pdf(inv)
+    recipients = [e.strip() for e in inv.company.email.split(',') if e.strip()]
+
     try:
-        import win32com.client as win32, pythoncom, time
-        pythoncom.CoInitialize()
-        outlook = win32.Dispatch('outlook.application')
-        mail    = outlook.CreateItem(0)
-        mapi    = outlook.GetNamespace('MAPI')
-        tenant  = db.session.get(Tenant, u.tenant_id)
-        sender_email = tenant.footer_email or ''
-        sender_account = None
-        for i in range(1, mapi.Accounts.Count + 1):
-            acc = mapi.Accounts.Item(i)
-            if acc.SmtpAddress.lower() == sender_email.lower():
-                sender_account = acc; break
-        if not sender_account:
-            inv.send_error = f'Account {sender_email} not found in Outlook'
-            db.session.commit()
-            return jsonify({'error': inv.send_error}), 400
-        mail.To      = '; '.join([e.strip() for e in inv.company.email.split(',') if e.strip()])
-        mail.Subject = f'Invoice N{inv.number} - {tenant.footer_name or tenant.name}'
-        mail._oleobj_.Invoke(*(64209, 0, 8, 0, sender_account))
-        our_text = f'<p style="font-family:Calibri,sans-serif;font-size:11pt;">გთხოვთ იხილოთ თანდართული ინვოისი N{inv.number}.</p>'
-        mail.Display(False); time.sleep(1.5)
-        mail.GetInspector
-        mail.HTMLBody = our_text + (mail.HTMLBody or '')
-        att = mail.Attachments.Add(os.path.abspath(tmp_path))
-        att.DisplayName = f'invoice-{inv.number}.pdf'
-        mail.Send()
+        msg = MIMEMultipart()
+        msg['From']    = tenant.smtp_email
+        msg['To']      = ', '.join(recipients)
+        msg['Subject'] = f'ინვოისი N{inv.number} - {tenant.footer_name or tenant.name}'
+
+        body = MIMEText(f'გთხოვთ იხილოთ თანდართული ინვოისი N{inv.number}.', 'plain', 'utf-8')
+        msg.attach(body)
+
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="invoice-{inv.number}.pdf"')
+        msg.attach(part)
+
+        with smtplib.SMTP_SSL(tenant.smtp_host, tenant.smtp_port or 465, timeout=15) as server:
+            server.login(tenant.smtp_email, tenant.smtp_password)
+            server.sendmail(tenant.smtp_email, recipients, msg.as_string())
+
         inv.sent = True; inv.send_error = None
         db.session.commit()
         return jsonify({'success': True})
-    except ImportError:
-        return jsonify({'error': 'pywin32 not installed'}), 500
     except Exception as e:
-        inv.send_error = str(e); db.session.commit()
+        inv.send_error = str(e)
+        db.session.commit()
         return jsonify({'error': str(e)}), 500
-    finally:
-        try:
-            import pythoncom; pythoncom.CoUninitialize()
-        except: pass
-        if os.path.exists(tmp_path): os.remove(tmp_path)
 
 @app.route('/api/invoices', methods=['GET'])
 @login_required
@@ -853,6 +889,10 @@ def admin_all_invoices():
 def run_migrations():
     import sqlalchemy
     migrations = [
+        ('tenant', 'smtp_email',    'VARCHAR(255)'),
+        ('tenant', 'smtp_password', 'VARCHAR(500)'),
+        ('tenant', 'smtp_host',     'VARCHAR(255)'),
+        ('tenant', 'smtp_port',     'INTEGER DEFAULT 465'),
         ('invoice', 'send_error',  'VARCHAR(255)'),
         ('invoice', 'custom_date', 'VARCHAR(20)'),
         ('invoice', 'items',       'TEXT'),

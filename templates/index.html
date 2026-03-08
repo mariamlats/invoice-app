@@ -373,6 +373,40 @@
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">ელ. ფოსტის გაგზავნა (SMTP)</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">შეავსეთ ეს ველები რომ ინვოისები გაიგზავნოს თქვენი ელ. ფოსტიდან. Gmail-ისთვის გამოიყენეთ App Password.</p>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">გამგზავნი მეილი</label>
+            <input class="form-input" id="s-smtp-email" type="email" placeholder="info@company.ge" oninput="autoFillSmtp()"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">პაროლი / App Password</label>
+            <input class="form-input" id="s-smtp-password" type="text" placeholder="პაროლი ან 16-სიმბოლიანი App Password"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SMTP სერვერი</label>
+            <input class="form-input" id="s-smtp-host" placeholder="smtp.gmail.com"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">პორტი</label>
+            <input class="form-input" id="s-smtp-port" type="number" placeholder="465" value="465"/>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted);">
+          <strong style="color:var(--text-soft);display:block;margin-bottom:6px;">გავრცელებული SMTP სერვერები:</strong>
+          Gmail: smtp.gmail.com : 465 &nbsp;|&nbsp;
+          Outlook/Hotmail: smtp.office365.com : 587 &nbsp;|&nbsp;
+          Yahoo: smtp.mail.yahoo.com : 465
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="btn btn-ghost" onclick="testSmtp()" id="test-smtp-btn">კავშირის შემოწმება</button>
+          <button class="btn btn-primary" onclick="saveSmtp()">შენახვა</button>
+        </div>
+        <p id="smtp-status" style="font-size:12px;margin-top:8px;text-align:right;"></p>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">მეილის შეცვლა</div>
         <div class="form-group">
           <label class="form-label">ახალი მეილი</label>
@@ -762,7 +796,12 @@
       document.getElementById('s-footer-bank-code').value = data.footer_bank_code || '';
       document.getElementById('s-footer-iban').value      = data.footer_iban      || '';
       document.getElementById('s-invoice-prefix').value   = data.invoice_prefix   || 30000;
-      if (data.has_signature) {
+      document.getElementById('s-smtp-email').value     = data.smtp_email  || '';
+      document.getElementById('s-smtp-host').value      = data.smtp_host   || '';
+      document.getElementById('s-smtp-port').value      = data.smtp_port   || 465;
+      if (data.smtp_configured) {
+        document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
+      }
         document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
       }
     } catch { showToast('პარამეტრების ჩატვირთვა ვერ მოხერხდა', 'error'); }
@@ -1120,6 +1159,61 @@
   }
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function autoFillSmtp() {
+    const email = document.getElementById('s-smtp-email').value.toLowerCase();
+    const host  = document.getElementById('s-smtp-host');
+    const port  = document.getElementById('s-smtp-port');
+    if (email.includes('@gmail.com')) {
+      host.value = 'smtp.gmail.com'; port.value = '465';
+    } else if (email.includes('@outlook.com') || email.includes('@hotmail.com') || email.includes('@live.com')) {
+      host.value = 'smtp.office365.com'; port.value = '587';
+    } else if (email.includes('@yahoo.com')) {
+      host.value = 'smtp.mail.yahoo.com'; port.value = '465';
+    }
+  }
+
+  async function saveSmtp() {
+    const payload = {
+      smtp_email:    document.getElementById('s-smtp-email').value.trim(),
+      smtp_password: document.getElementById('s-smtp-password').value.trim(),
+      smtp_host:     document.getElementById('s-smtp-host').value.trim(),
+      smtp_port:     parseInt(document.getElementById('s-smtp-port').value) || 465,
+    };
+    if (!payload.smtp_email || !payload.smtp_host) { showToast('მეილი და სერვერი სავალდებულოა', 'error'); return; }
+    try {
+      const res = await fetch('/api/settings/smtp', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      document.getElementById('s-smtp-password').value = '';
+      document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
+      showToast('ელ. ფოსტის პარამეტრები შენახულია', 'success');
+    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+  }
+
+  async function testSmtp() {
+    const btn    = document.getElementById('test-smtp-btn');
+    const status = document.getElementById('smtp-status');
+    btn.disabled = true;
+    btn.textContent = 'მოწმდება...';
+    status.textContent = '';
+    try {
+      const res  = await fetch('/api/settings/smtp/test', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        status.style.color = 'var(--danger)';
+        status.textContent = '✕ ' + (data.error || 'კავშირი ვერ დამყარდა');
+      } else {
+        status.style.color = 'var(--success)';
+        status.textContent = '✓ კავშირი წარმატებულია!';
+      }
+    } catch {
+      status.style.color = 'var(--danger)';
+      status.textContent = '✕ შეცდომა';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'კავშირის შემოწმება';
+    }
   }
 
   // ── Email change (user) ──────────────────────────────────────────────────────
