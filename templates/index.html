@@ -802,6 +802,7 @@
       if (data.smtp_configured) {
         document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
       }
+      if (data.has_signature) {
         document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
       }
     } catch { showToast('პარამეტრების ჩატვირთვა ვერ მოხერხდა', 'error'); }
