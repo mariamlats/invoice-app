@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Invoice Manager — შპს დემიქსი</title>
+  <title>Invoice Manager</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,7 +24,11 @@
     .nav-item:hover { color: var(--text); background: var(--surface2); }
     .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(44,123,182,0.06); }
     .nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
-    .sidebar-footer { padding: 18px 22px; border-top: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--text-muted); }
+    .sidebar-footer { padding: 14px 22px; border-top: 1px solid var(--border); }
+    .user-info { font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--text-muted); margin-bottom: 10px; word-break: break-all; }
+    .user-info strong { color: var(--text-soft); display: block; margin-bottom: 2px; }
+    .btn-logout { width: 100%; padding: 7px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.14s; }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
     .main { flex: 1; overflow-y: auto; height: 100vh; }
     .page { display: none; padding: 36px 44px; animation: fadeIn 0.2s ease; }
@@ -47,13 +51,11 @@
     .btn svg { width: 14px; height: 14px; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
 
-    /* Search bar */
     .search-bar { position: relative; margin-bottom: 20px; }
     .search-bar input { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 9px 12px 9px 36px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.14s; }
     .search-bar input:focus { border-color: var(--accent-dim); }
     .search-bar svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); pointer-events: none; }
 
-    /* Cards grid */
     .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 22px; transition: border-color 0.18s; position: relative; overflow: hidden; }
     .card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--accent); opacity: 0; transition: opacity 0.18s; }
@@ -76,6 +78,12 @@
     .empty-state strong { font-size: 14px; }
     .empty-state p { font-size: 12.5px; margin-top: 6px; }
 
+    /* Settings */
+    .settings-wrap { max-width: 640px; }
+    .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px 30px; margin-bottom: 20px; }
+    .settings-section-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
     /* Form */
     .invoice-form-wrap { max-width: 620px; }
     .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px 30px; margin-bottom: 20px; }
@@ -89,7 +97,6 @@
     .invoice-number-preview { display: inline-flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 9px 14px; font-family: 'DM Mono', monospace; font-size: 14px; color: var(--accent); margin-top: 2px; }
     .invoice-number-preview span { color: var(--text-muted); font-size: 10px; }
 
-    /* Product rows in invoice form */
     .product-rows { display: flex; flex-direction: column; gap: 12px; }
     .product-row { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; position: relative; }
     .product-row-grid { display: grid; grid-template-columns: 1fr 100px 110px 110px; gap: 10px; align-items: end; }
@@ -102,7 +109,6 @@
     .grand-total-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
     .grand-total-amount { font-family: 'DM Mono', monospace; font-size: 18px; color: var(--accent); font-weight: 500; }
 
-    /* History */
     .history-table { width: 100%; border-collapse: collapse; }
     .history-table th { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; }
     .history-table td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-soft); vertical-align: middle; }
@@ -113,10 +119,9 @@
     .badge-pending { background: rgba(44,123,182,0.1); color: var(--accent); border: 1px solid rgba(44,123,182,0.2); }
     .badge-failed { background: rgba(192,97,74,0.12); color: var(--danger); border: 1px solid rgba(192,97,74,0.25); }
 
-    /* Modals */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
-    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 30px; width: 100%; max-width: 480px; margin: 20px; animation: modalIn 0.2s ease; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 30px; width: 100%; max-width: 480px; margin: 20px; animation: modalIn 0.2s ease; max-height: 90vh; overflow-y: auto; }
     .modal-lg { max-width: 820px; }
     @keyframes modalIn { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
     .modal h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; margin-bottom: 22px; }
@@ -131,19 +136,30 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .confirm-modal p { font-size: 13.5px; color: var(--text-soft); line-height: 1.6; }
 
-    /* Dropdown */
     .dropdown-wrap { position: relative; }
     .dropdown-list { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; z-index: 50; max-height: 200px; overflow-y: auto; margin-top: 3px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
     .dropdown-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
     .dropdown-item:hover { background: var(--surface); }
     .dropdown-item:last-child { border-bottom: none; }
 
-    /* Toast */
     .toast-container { position: fixed; bottom: 22px; right: 22px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
     .toast { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 11px 15px; font-size: 13px; display: flex; align-items: center; gap: 9px; min-width: 230px; animation: toastIn 0.2s ease; box-shadow: 0 4px 18px rgba(0,0,0,0.35); }
     .toast.success { border-left: 3px solid var(--success); }
     .toast.error { border-left: 3px solid var(--danger); }
     @keyframes toastIn { from { transform: translateX(18px); opacity: 0; } to { opacity: 1; } }
+
+    /* Signature upload */
+    .sig-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.14s; }
+    .sig-upload-area:hover { border-color: var(--accent); }
+    .sig-upload-area p { font-size: 12.5px; color: var(--text-muted); margin-top: 8px; }
+    .sig-preview { max-height: 80px; margin-top: 10px; border-radius: 4px; filter: invert(1) brightness(0.8); }
+
+    /* Admin table */
+    .admin-table { width: 100%; border-collapse: collapse; }
+    .admin-table th { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; }
+    .admin-table td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+    .admin-table tr:last-child td { border-bottom: none; }
+    .admin-table tr:hover td { background: var(--surface2); }
 
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -155,7 +171,7 @@
 <aside class="sidebar">
   <div class="sidebar-logo">
     <h1>Invoice<br>Manager</h1>
-    <span>შპს დემიქსი</span>
+    <span id="sidebar-tenant-name">იტვირთება...</span>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">მენიუ</div>
@@ -171,8 +187,22 @@
     <div class="nav-item" data-page="history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>ისტორია
     </div>
+    <div class="nav-item" data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>პარამეტრები
+    </div>
+    <!-- Superadmin only -->
+    <div class="nav-label" id="admin-nav-label" style="display:none;">ადმინი</div>
+    <div class="nav-item" data-page="admin" id="admin-nav-item" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>კომპანიები
+    </div>
   </nav>
-  <div class="sidebar-footer">ინვოის მენეჯერი &copy; 2025</div>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <strong id="user-email-display"></strong>
+      <span id="user-role-display"></span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">გასვლა</button>
+  </div>
 </aside>
 
 <main class="main">
@@ -180,7 +210,7 @@
   <!-- ── Companies ── -->
   <section class="page active" id="page-companies">
     <div class="page-header">
-      <div><h2>კლიენტები</h2><p>მართეთ თქვენი კლიენტი კლიენტები</p></div>
+      <div><h2>კლიენტები</h2><p>მართეთ თქვენი კლიენტები</p></div>
       <button class="btn btn-primary" onclick="openAddCompanyModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>კლიენტის დამატება
       </button>
@@ -210,7 +240,7 @@
   <!-- ── New Invoice ── -->
   <section class="page" id="page-new-invoice">
     <div class="page-header">
-      <div><h2>ახალი ინვოისი</h2><p>შეავსეთ ველები და გენერირეთ ინვოისი</p></div>
+      <div><h2>ახალი ინვოისი</h2><p>შეავსეთ ველები და დააგენერირეთ ინვოისი</p></div>
     </div>
     <div class="invoice-form-wrap">
       <div class="form-card">
@@ -269,13 +299,142 @@
     </div>
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
       <table class="history-table">
-        <thead><tr><th>ინვოისი #</th><th>კომპანია</th><th>თანხა</th><th>თარიღი</th><th>სტატუსი</th><th></th></tr></thead>
+        <thead><tr><th>ინვოისი #</th><th>კლიენტი</th><th>თანხა</th><th>თარიღი</th><th>სტატუსი</th><th></th></tr></thead>
         <tbody id="history-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">იტვირთება...</td></tr></tbody>
       </table>
     </div>
   </section>
 
+  <!-- ── Settings ── -->
+  <section class="page" id="page-settings">
+    <div class="page-header">
+      <div><h2>პარამეტრები</h2><p>თქვენი კომპანიის პროფილი და ინვოისის ქვედა ნაწილი</p></div>
+    </div>
+    <div class="settings-wrap">
+      <div class="settings-section">
+        <div class="settings-section-title">კომპანიის ინფორმაცია (ინვოისის ქვედა ნაწილი)</div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">კომპანიის სახელი (ინვოისში)</label>
+            <input class="form-input" id="s-footer-name" placeholder="შპს დემიქსი"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ს/კ (საიდენტიფიკაციო კოდი)</label>
+            <input class="form-input" id="s-footer-vat" placeholder="405328998"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">მისამართი</label>
+            <input class="form-input" id="s-footer-address" placeholder="ქინძმარაულის ქ. #17"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ტელეფონი</label>
+            <input class="form-input" id="s-footer-phone" placeholder="599 000 000"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ელ. მეილი</label>
+            <input class="form-input" id="s-footer-email" placeholder="info@company.ge"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">დირექტორი</label>
+            <input class="form-input" id="s-footer-director" placeholder="სახელი გვარი"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ბანკი</label>
+            <input class="form-input" id="s-footer-bank" placeholder='JSC "Bank of Georgia"'/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bank Code (SWIFT)</label>
+            <input class="form-input" id="s-footer-bank-code" placeholder="BAGAGE22"/>
+          </div>
+          <div class="form-group" style="grid-column: 1/-1;">
+            <label class="form-label">ანგარიში (IBAN)</label>
+            <input class="form-input" id="s-footer-iban" placeholder="GE30BG0000000161105533"/>
+          </div>
+          <div class="form-group" style="grid-column: 1/-1;">
+            <label class="form-label">ინვოისის საწყისი ნომერი</label>
+            <input class="form-input" id="s-invoice-prefix" placeholder="30000" type="number"/>
+            <p class="form-hint">პირველი ინვოისი იქნება ამ ნომერი + 1</p>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="saveSettings()">შენახვა</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">ხელმოწერა</div>
+        <div class="sig-upload-area" onclick="document.getElementById('sig-file-input').click()">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin:0 auto; display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p>დააჭირეთ ან ჩააგდეთ PNG/JPG ფაილი (მაქს. 2MB)</p>
+          <div id="sig-preview-wrap"></div>
+        </div>
+        <input type="file" id="sig-file-input" accept=".png,.jpg,.jpeg" style="display:none;" onchange="uploadSignature(this)"/>
+        <p class="form-hint" style="margin-top:8px;" id="sig-status"></p>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">პაროლის შეცვლა</div>
+        <div class="form-group">
+          <label class="form-label">მიმდინარე პაროლი</label>
+          <div style="position:relative;">
+            <input class="form-input" id="s-pwd-current" type="text" placeholder="მიმდინარე პაროლი" style="padding-right:44px;"/>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">ახალი პაროლი</label>
+            <input class="form-input" id="s-pwd-new" type="text" placeholder="ახალი პაროლი"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">გაიმეორეთ ახალი პაროლი</label>
+            <input class="form-input" id="s-pwd-confirm" type="text" placeholder="გაიმეორეთ"/>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="changePassword()">პაროლის შეცვლა</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Admin (superadmin only) ── -->
+  <section class="page" id="page-admin">
+    <div class="page-header">
+      <div><h2>კომპანიების მართვა</h2><p>ყველა რეგისტრირებული კომპანია</p></div>
+      <button class="btn btn-primary" onclick="openAddTenantModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>კომპანიის დამატება
+      </button>
+    </div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <table class="admin-table">
+        <thead><tr><th>კომპანია</th><th>მეილი</th><th>ID</th><th>პაროლი</th><th></th></tr></thead>
+        <tbody id="admin-tenants-tbody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">იტვირთება...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
 </main>
+
+<!-- ── Reset Password Modal (admin) ── -->
+<div class="modal-overlay" id="reset-pwd-modal">
+  <div class="modal" style="max-width:400px;">
+    <h3>პაროლის შეცვლა</h3>
+    <input type="hidden" id="reset-pwd-tenant-id"/>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;" id="reset-pwd-label"></p>
+    <div class="form-group">
+      <label class="form-label">ახალი პაროლი</label>
+      <input class="form-input" id="reset-pwd-new" type="text" placeholder="ახალი პაროლი"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">გაიმეორეთ</label>
+      <input class="form-input" id="reset-pwd-confirm" type="text" placeholder="გაიმეორეთ"/>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('reset-pwd-modal')">გაუქმება</button>
+      <button class="btn btn-primary" onclick="doResetPassword()">შეცვლა</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Add/Edit Company Modal ── -->
 <div class="modal-overlay" id="company-modal">
@@ -336,6 +495,20 @@
   </div>
 </div>
 
+<!-- ── Add Tenant Modal (admin only) ── -->
+<div class="modal-overlay" id="tenant-modal">
+  <div class="modal">
+    <h3>კომპანიის დამატება</h3>
+    <div class="form-group"><label class="form-label">კომპანიის სახელი</label><input class="form-input" id="t-name" placeholder="შპს კომპანია"/></div>
+    <div class="form-group"><label class="form-label">ელ. მეილი (შესვლისთვის)</label><input class="form-input" id="t-email" type="email" placeholder="company@example.com"/></div>
+    <div class="form-group"><label class="form-label">პაროლი</label><input class="form-input" id="t-password" type="password" placeholder="••••••••"/></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tenant-modal')">გაუქმება</button>
+      <button class="btn btn-primary" onclick="saveTenant()">შექმნა</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Delete Confirm Modal ── -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal" style="max-width:390px;">
@@ -373,9 +546,32 @@
   let companies = [], products = [];
   let deleteTarget = { type: null, id: null };
   let currentInvoiceId = null;
-  let productRowCount = 0;
+  let productRowCount  = 0;
+  let currentUser      = null;
 
-  // ── Navigation ──────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const res  = await fetch('/api/auth/me');
+      if (!res.ok) { window.location.href = '/login'; return; }
+      currentUser = await res.json();
+      document.getElementById('sidebar-tenant-name').textContent = currentUser.tenant_name;
+      document.getElementById('user-email-display').textContent  = currentUser.email;
+      document.getElementById('user-role-display').textContent   = currentUser.role === 'superadmin' ? 'სუპერ ადმინი' : 'მომხმარებელი';
+      if (currentUser.role === 'superadmin') {
+        document.getElementById('admin-nav-label').style.display = '';
+        document.getElementById('admin-nav-item').style.display  = '';
+      }
+    } catch { window.location.href = '/login'; }
+    loadCompanies();
+  }
+
+  async function doLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  }
+
+  // ── Navigation ───────────────────────────────────────────────────────────────
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
       const page = item.dataset.page;
@@ -387,13 +583,16 @@
       if (page === 'products')    loadProducts();
       if (page === 'new-invoice') initInvoiceForm();
       if (page === 'history')     loadHistory();
+      if (page === 'settings')    loadSettings();
+      if (page === 'admin')       loadTenants();
     });
   });
 
-  // ── Companies ───────────────────────────────────────────────────────────────
+  // ── Companies ────────────────────────────────────────────────────────────────
   async function loadCompanies() {
     try {
       const res = await fetch('/api/companies');
+      if (res.status === 401) { window.location.href = '/login'; return; }
       companies = await res.json();
       renderCompanies();
     } catch { showToast('კლიენტების ჩატვირთვა ვერ მოხერხდა', 'error'); }
@@ -444,32 +643,29 @@
     openModal('company-modal');
   }
   async function saveCompany() {
-    const id = document.getElementById('edit-company-id').value;
+    const id    = document.getElementById('edit-company-id').value;
     const email = document.getElementById('f-email').value.trim();
-    // Validate emails - each part must have @
-    const emailParts = email.split(',');
-    for (const e of emailParts) {
-      if (!e.trim().includes('@')) { showToast('მეილები უნდა იყოს გამოყოფილი მძიმით და ყველა უნდა იყოს სწორი', 'error'); return; }
+    for (const e of email.split(',')) {
+      if (!e.trim().includes('@')) { showToast('მეილი არასწორია', 'error'); return; }
     }
     const payload = {
       legal_form: document.getElementById('f-legal-form').value,
       name: document.getElementById('f-name').value.trim(),
       vat: document.getElementById('f-vat').value.trim(),
       address: document.getElementById('f-address').value.trim(),
-      email: email,
-      status: document.getElementById('f-status').value,
+      email, status: document.getElementById('f-status').value,
     };
-    if (!payload.name || !payload.vat || !payload.address || !payload.email) { showToast('გთხოვთ შეავსოთ ყველა ველი', 'error'); return; }
+    if (!payload.name || !payload.vat || !payload.address || !payload.email) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
     try {
       const res = await fetch(id ? `/api/companies/${id}` : '/api/companies', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      const resData = await res.json();
-      if (!res.ok) { showToast(resData.error || 'შენახვა ვერ მოხერხდა', 'error'); return; }
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'შენახვა ვერ მოხერხდა', 'error'); return; }
       closeModal('company-modal'); await loadCompanies();
       showToast(id ? 'კლიენტი განახლდა' : 'კლიენტი დაემატა', 'success');
     } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
   }
 
-  // ── Products ────────────────────────────────────────────────────────────────
+  // ── Products ─────────────────────────────────────────────────────────────────
   async function loadProducts() {
     try {
       const res = await fetch('/api/products');
@@ -523,7 +719,7 @@
   async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const payload = { name: document.getElementById('p-name').value.trim(), unit: document.getElementById('p-unit').value, price: document.getElementById('p-price').value.trim(), vat: document.getElementById('p-vat').value };
-    if (!payload.name || !payload.price) { showToast('გთხოვთ შეავსოთ ყველა ველი', 'error'); return; }
+    if (!payload.name || !payload.price) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
     try {
       const res = await fetch(id ? `/api/products/${id}` : '/api/products', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
@@ -532,7 +728,118 @@
     } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
+  // ── Settings ─────────────────────────────────────────────────────────────────
+  async function loadSettings() {
+    try {
+      const res  = await fetch('/api/settings');
+      const data = await res.json();
+      document.getElementById('s-footer-name').value      = data.footer_name      || '';
+      document.getElementById('s-footer-vat').value       = data.footer_vat       || '';
+      document.getElementById('s-footer-address').value   = data.footer_address   || '';
+      document.getElementById('s-footer-phone').value     = data.footer_phone     || '';
+      document.getElementById('s-footer-email').value     = data.footer_email     || '';
+      document.getElementById('s-footer-director').value  = data.footer_director  || '';
+      document.getElementById('s-footer-bank').value      = data.footer_bank      || '';
+      document.getElementById('s-footer-bank-code').value = data.footer_bank_code || '';
+      document.getElementById('s-footer-iban').value      = data.footer_iban      || '';
+      document.getElementById('s-invoice-prefix').value   = data.invoice_prefix   || 30000;
+      if (data.has_signature) {
+        document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
+      }
+    } catch { showToast('პარამეტრების ჩატვირთვა ვერ მოხერხდა', 'error'); }
+  }
+
+  async function saveSettings() {
+    const payload = {
+      footer_name:      document.getElementById('s-footer-name').value.trim(),
+      footer_vat:       document.getElementById('s-footer-vat').value.trim(),
+      footer_address:   document.getElementById('s-footer-address').value.trim(),
+      footer_phone:     document.getElementById('s-footer-phone').value.trim(),
+      footer_email:     document.getElementById('s-footer-email').value.trim(),
+      footer_director:  document.getElementById('s-footer-director').value.trim(),
+      footer_bank:      document.getElementById('s-footer-bank').value.trim(),
+      footer_bank_code: document.getElementById('s-footer-bank-code').value.trim(),
+      footer_iban:      document.getElementById('s-footer-iban').value.trim(),
+      invoice_prefix:   parseInt(document.getElementById('s-invoice-prefix').value) || 30000,
+    };
+    try {
+      const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      showToast('პარამეტრები შენახულია', 'success');
+    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+  }
+
+  async function uploadSignature(input) {
+    const file = input.files[0]; if (!file) return;
+    const statusEl = document.getElementById('sig-status');
+    statusEl.textContent = 'იტვირთება...';
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/settings/signature', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) { statusEl.textContent = data.error || 'შეცდომა'; return; }
+      statusEl.textContent = '✓ ხელმოწერა შენახულია';
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('sig-preview-wrap').innerHTML = `<img src="${e.target.result}" class="sig-preview"/>`;
+      };
+      reader.readAsDataURL(file);
+      showToast('ხელმოწერა ატვირთულია', 'success');
+    } catch { statusEl.textContent = 'ატვირთვა ვერ მოხერხდა'; showToast('ატვირთვა ვერ მოხერხდა', 'error'); }
+  }
+
+  // ── Admin – Tenants ──────────────────────────────────────────────────────────
+  async function loadTenants() {
+    try {
+      const res  = await fetch('/api/admin/tenants');
+      const data = await res.json();
+      const tbody = document.getElementById('admin-tenants-tbody');
+      if (!data.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">კომპანიები არ არის</td></tr>`; return; }
+      tbody.innerHTML = data.map(t => `
+        <tr>
+          <td><strong style="color:var(--text);">${escHtml(t.name)}</strong></td>
+          <td>${escHtml(t.email)}</td>
+          <td><span style="font-family:'DM Mono',monospace;color:var(--accent);">#${t.id}</span></td>
+          <td><button class="btn btn-ghost btn-sm" onclick="openResetPassword(${t.id}, '${escHtml(t.email)}')">პაროლის შეცვლა</button></td>
+          <td><button class="btn btn-danger-outline btn-sm" onclick="deleteTenant(${t.id}, '${escHtml(t.name)}')">წაშლა</button></td>
+        </tr>`).join('');
+    } catch { showToast('ჩატვირთვა ვერ მოხერხდა', 'error'); }
+  }
+
+  function openAddTenantModal() {
+    ['t-name','t-email','t-password'].forEach(id => document.getElementById(id).value = '');
+    openModal('tenant-modal');
+  }
+
+  async function saveTenant() {
+    const payload = {
+      name:     document.getElementById('t-name').value.trim(),
+      email:    document.getElementById('t-email').value.trim(),
+      password: document.getElementById('t-password').value,
+    };
+    if (!payload.name || !payload.email || !payload.password) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    try {
+      const res  = await fetch('/api/admin/tenants', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
+      closeModal('tenant-modal');
+      showToast('კომპანია დაემატა', 'success');
+      loadTenants();
+    } catch { showToast('შეცდომა', 'error'); }
+  }
+
+  async function deleteTenant(id, name) {
+    if (!confirm(`წაშლა: ${name}?\n\nეს წაშლის ყველა კლიენტს, პროდუქტს და ინვოისს!`)) return;
+    try {
+      await fetch(`/api/admin/tenants/${id}`, { method: 'DELETE' });
+      showToast('კომპანია წაიშალა', 'success');
+      loadTenants();
+    } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
   function askDelete(type, id, name) {
     deleteTarget = { type, id };
     document.getElementById('confirm-title').textContent = type === 'company' ? 'კლიენტის წაშლა' : 'პროდუქტის წაშლა';
@@ -549,7 +856,7 @@
     } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
   }
 
-  // ── Invoice Form ────────────────────────────────────────────────────────────
+  // ── Invoice Form ─────────────────────────────────────────────────────────────
   async function initInvoiceForm() {
     const today = new Date();
     document.getElementById('inv-date').value = today.toLocaleDateString('en-GB');
@@ -569,8 +876,10 @@
     addProductRow();
   }
 
-  // Company searchable dropdown
-  function filterCompanyDropdown() { renderCompanyDropdown(companies.filter(c => c.name.toLowerCase().includes(document.getElementById('company-search').value.toLowerCase()))); }
+  function filterCompanyDropdown() {
+    const q = document.getElementById('company-search').value.toLowerCase();
+    renderCompanyDropdown(companies.filter(c => c.name.toLowerCase().includes(q) || (c.vat && c.vat.includes(q))));
+  }
   function showCompanyDropdown() { renderCompanyDropdown(companies); }
   function renderCompanyDropdown(list) {
     const dd = document.getElementById('company-dropdown');
@@ -591,11 +900,10 @@
       document.getElementById('company-dropdown').style.display = 'none';
   });
 
-  // Product rows
   function addProductRow() {
-    const id = ++productRowCount;
+    const id   = ++productRowCount;
     const wrap = document.getElementById('product-rows');
-    const div = document.createElement('div');
+    const div  = document.createElement('div');
     div.className = 'product-row';
     div.id = 'prow-' + id;
     div.innerHTML = `
@@ -627,7 +935,6 @@
       </div>
       <div class="product-row-total" id="prow-total-${id}">ჯამი: 0.00 ₾</div>`;
     wrap.appendChild(div);
-
     document.addEventListener('click', function handler(e) {
       if (!e.target.closest('#prow-search-' + id) && !e.target.closest('#prow-dd-' + id)) {
         const dd = document.getElementById('prow-dd-' + id);
@@ -648,28 +955,26 @@
   }
   function showProductDropdown(rowId) { renderProductDropdown(rowId, products); }
   function renderProductDropdown(rowId, list) {
-    const dd = document.getElementById('prow-dd-' + rowId);
-    if (!dd) return;
+    const dd = document.getElementById('prow-dd-' + rowId); if (!dd) return;
     dd.innerHTML = list.length ? list.map(pr => `<div class="dropdown-item" onclick="selectProduct(${rowId}, ${pr.id})">${escHtml(pr.name)} <span style="color:var(--text-muted);font-size:11px;"> — ${escHtml(pr.price)} ₾ / ${escHtml(pr.unit)}</span></div>`).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">ვერ მოიძებნა</div>';
     dd.style.display = 'block';
   }
   function selectProduct(rowId, productId) {
     const pr = products.find(p => p.id === productId); if (!pr) return;
-    document.getElementById('prow-search-' + rowId).value = pr.name;
-    document.getElementById('prow-pid-' + rowId).value = pr.id;
-    document.getElementById('prow-name-' + rowId).value = pr.name;
-    document.getElementById('prow-unit-' + rowId).value = pr.unit;
+    document.getElementById('prow-search-' + rowId).value      = pr.name;
+    document.getElementById('prow-pid-' + rowId).value         = pr.id;
+    document.getElementById('prow-name-' + rowId).value        = pr.name;
+    document.getElementById('prow-unit-' + rowId).value        = pr.unit;
     document.getElementById('prow-unitdisplay-' + rowId).value = pr.unit;
-    document.getElementById('prow-price-' + rowId).value = pr.price;
-    document.getElementById('prow-dd-' + rowId).style.display = 'none';
+    document.getElementById('prow-price-' + rowId).value       = pr.price;
+    document.getElementById('prow-dd-' + rowId).style.display  = 'none';
     recalcRow(rowId);
   }
 
   function recalcRow(rowId) {
     const qty   = parseFloat((document.getElementById('prow-qty-' + rowId).value || '0').replace(',', '.')) || 0;
     const price = parseFloat((document.getElementById('prow-price-' + rowId).value || '0').replace(',', '.')) || 0;
-    const total = qty * price;
-    document.getElementById('prow-total-' + rowId).textContent = 'ჯამი: ' + total.toFixed(2) + ' ₾';
+    document.getElementById('prow-total-' + rowId).textContent = 'ჯამი: ' + (qty * price).toFixed(2) + ' ₾';
     updateGrandTotal();
   }
 
@@ -693,8 +998,7 @@
       const unit  = document.getElementById('prow-unit-' + rowId)?.value || '';
       const qty   = parseFloat((document.getElementById('prow-qty-' + rowId)?.value || '0').replace(',', '.')) || 0;
       const price = parseFloat((document.getElementById('prow-price-' + rowId)?.value || '0').replace(',', '.')) || 0;
-      const total = qty * price;
-      items.push({ name, unit, qty: qty.toString(), price: price.toFixed(2), total: total.toFixed(2) });
+      items.push({ name, unit, qty: qty.toString(), price: price.toFixed(2), total: (qty * price).toFixed(2) });
     });
     return items;
   }
@@ -704,11 +1008,9 @@
     if (!company_id) { showToast('გთხოვთ აირჩიოთ კომპანია', 'error'); return; }
     const items = collectItems();
     if (!items.length) { showToast('გთხოვთ დაამატოთ მინიმუმ ერთი პროდუქტი', 'error'); return; }
-
     const btn = document.getElementById('generate-btn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> მიმდინარეობს...';
-
     try {
       const res  = await fetch('/api/invoices/generate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ company_id, items, date: document.getElementById('inv-date').value.trim(), show_details: document.getElementById('show-details').checked }) });
       const data = await res.json();
@@ -720,7 +1022,7 @@
       document.getElementById('send-btn').disabled = false;
       document.getElementById('sending-indicator').style.display = 'none';
       openModal('pdf-modal');
-      await initInvoiceForm();
+      // Do NOT reset form here — user may close modal to fix something
     } catch(e) {
       showToast(e.message || 'გენერირება ვერ მოხერხდა', 'error');
     } finally {
@@ -741,6 +1043,7 @@
       closeModal('pdf-modal');
       showToast('ინვოისი გაიგზავნა!', 'success');
       currentInvoiceId = null;
+      await initInvoiceForm();
     } catch(e) {
       showToast(e.message || 'გაგზავნა ვერ მოხერხდა', 'error');
       btn.disabled = false;
@@ -749,11 +1052,11 @@
     }
   }
 
-  // ── History ─────────────────────────────────────────────────────────────────
+  // ── History ──────────────────────────────────────────────────────────────────
   async function loadHistory() {
     try {
-      const res  = await fetch('/api/invoices');
-      const data = await res.json();
+      const res   = await fetch('/api/invoices');
+      const data  = await res.json();
       const tbody = document.getElementById('history-tbody');
       if (!data.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">ინვოისები არ არის</td></tr>`; return; }
       tbody.innerHTML = data.map(inv => `
@@ -763,7 +1066,7 @@
           <td style="color:var(--text);">${escHtml(inv.amount)} ₾</td>
           <td>${inv.date}</td>
           <td>${inv.sent ? '<span class="badge badge-sent">✓ გაგზავნილი</span>' : inv.error ? '<span class="badge badge-failed" title="'+escHtml(inv.error)+'">✕ შეცდომა</span>' : '<span class="badge badge-pending">⏳ მომლოდინე</span>'}</td>
-          <td>${!inv.sent ? '<button class="btn btn-danger-outline btn-sm" onclick="deleteInvoice('+inv.id+')">წაშლა</button>' : ''}</td>
+          <td>${!inv.sent ? `<button class="btn btn-danger-outline btn-sm" onclick="deleteInvoice(${inv.id})">წაშლა</button>` : ''}</td>
         </tr>`).join('');
     } catch { showToast('ისტორიის ჩატვირთვა ვერ მოხერხდა', 'error'); }
   }
@@ -776,14 +1079,14 @@
     } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
   }
 
-  // ── Modals ──────────────────────────────────────────────────────────────────
+  // ── Modals ───────────────────────────────────────────────────────────────────
   function openModal(id)  { document.getElementById(id).classList.add('open'); }
   function closeModal(id) { document.getElementById(id).classList.remove('open'); }
   document.querySelectorAll('.modal-overlay').forEach(o => {
     o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
   });
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   function base64ToBlob(b64, type) {
     const bin = atob(b64), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
@@ -800,8 +1103,50 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // Init
-  loadCompanies();
+  // ── Password change (user) ───────────────────────────────────────────────────
+  async function changePassword() {
+    const current = document.getElementById('s-pwd-current').value;
+    const newPwd  = document.getElementById('s-pwd-new').value;
+    const confirm = document.getElementById('s-pwd-confirm').value;
+    if (!current || !newPwd || !confirm) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (newPwd !== confirm) { showToast('ახალი პაროლები არ ემთხვევა', 'error'); return; }
+    if (newPwd.length < 6) { showToast('პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს', 'error'); return; }
+    try {
+      const res  = await fetch('/api/auth/change-password', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ current_password: current, new_password: newPwd }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
+      document.getElementById('s-pwd-current').value = '';
+      document.getElementById('s-pwd-new').value = '';
+      document.getElementById('s-pwd-confirm').value = '';
+      showToast('პაროლი შეიცვალა', 'success');
+    } catch { showToast('შეცდომა', 'error'); }
+  }
+
+  // ── Admin: reset any tenant's password ───────────────────────────────────────
+  function openResetPassword(tenantId, email) {
+    document.getElementById('reset-pwd-tenant-id').value = tenantId;
+    document.getElementById('reset-pwd-label').textContent = email;
+    document.getElementById('reset-pwd-new').value = '';
+    document.getElementById('reset-pwd-confirm').value = '';
+    openModal('reset-pwd-modal');
+  }
+  async function doResetPassword() {
+    const tenantId = document.getElementById('reset-pwd-tenant-id').value;
+    const newPwd   = document.getElementById('reset-pwd-new').value;
+    const confirm  = document.getElementById('reset-pwd-confirm').value;
+    if (!newPwd || !confirm) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (newPwd !== confirm) { showToast('პაროლები არ ემთხვევა', 'error'); return; }
+    if (newPwd.length < 6) { showToast('პაროლი მინიმუმ 6 სიმბოლო', 'error'); return; }
+    try {
+      const res  = await fetch(`/api/admin/tenants/${tenantId}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_password: newPwd }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
+      closeModal('reset-pwd-modal');
+      showToast('პაროლი შეიცვალა', 'success');
+    } catch { showToast('შეცდომა', 'error'); }
+  }
+
+  init();
 </script>
 </body>
 </html>

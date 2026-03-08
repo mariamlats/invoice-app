@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
@@ -8,38 +8,66 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import os, io, json, base64, sys
+import os, io, json, base64, sys, hashlib, secrets
+from functools import wraps
 
-# Load .env file — works both normally and when frozen as .exe
+# ── Load .env ─────────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
     if getattr(sys, 'frozen', False):
-        # .env sits next to the .exe
         _env_path = os.path.join(os.path.dirname(sys.executable), '.env')
     else:
         _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     load_dotenv(_env_path)
 except ImportError:
-    pass  # dotenv not installed, fall back to environment variables
+    pass
 
-if getattr(sys, 'frozen', False):
-    app = Flask(
-        __name__,
-        template_folder=os.environ.get('FLASK_TEMPLATE_FOLDER', 'templates'),
-        static_folder=os.environ.get('FLASK_STATIC_FOLDER', 'static'),
-    )
-else:
-    app = Flask(__name__)
+app = Flask(__name__)
 
 _db_url = os.environ.get('DATABASE_URL')
 if not _db_url:
-    raise RuntimeError('DATABASE_URL not set. Please create a .env file — see .env.example')
+    raise RuntimeError('DATABASE_URL not set.')
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 db = SQLAlchemy(app)
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# ── Supabase Storage ──────────────────────────────────────────────────────────
+SUPABASE_URL         = os.environ.get('SUPABASE_URL', '').rstrip('/')
+SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
+STORAGE_BUCKET       = 'signatures'
+
+def upload_signature_to_supabase(file_bytes: bytes, filename: str, tenant_id: int) -> str:
+    """Upload signature to Supabase Storage, return public path key."""
+    import urllib.request, urllib.error
+    path = f'tenant_{tenant_id}/{filename}'
+    url  = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}'
+    req  = urllib.request.Request(url, data=file_bytes, method='POST')
+    req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
+    req.add_header('Content-Type', 'image/png')
+    req.add_header('x-upsert', 'true')   # overwrite if exists
+    try:
+        urllib.request.urlopen(req)
+        return path
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'Supabase upload failed: {e.code} {e.read().decode()}')
+
+def get_signature_bytes(storage_path: str):
+    """Download signature bytes from Supabase Storage (private bucket via service key)."""
+    import urllib.request, urllib.error
+    url = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{storage_path}'
+    req = urllib.request.Request(url)
+    req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return resp.read()
+    except Exception:
+        return None
+
+# ── Paths & Fonts ─────────────────────────────────────────────────────────────
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
     DATA_DIR = os.path.dirname(sys.executable)
@@ -60,14 +88,67 @@ else:
     pdfmetrics.registerFont(TTFont('DejaVu',     main_font))
     pdfmetrics.registerFont(TTFont('DejaVuBold', os.path.join(FONT_DIR, 'DejaVuSans-Bold.ttf')))
 
-SIG_PATH  = os.environ.get('SIG_PATH', os.path.join(BASE_DIR, 'static', 'signature.png'))
+# ── Password hashing (no bcrypt dependency) ───────────────────────────────────
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    h    = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f'{salt}:{h}'
 
-FIRST_NUM = 30281
+def check_password(password: str, stored: str) -> bool:
+    try:
+        salt, h = stored.split(':', 1)
+        return hashlib.sha256((salt + password).encode()).hexdigest() == h
+    except Exception:
+        return False
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+class Tenant(db.Model):
+    __tablename__ = 'tenant'
+    id                   = db.Column(db.Integer, primary_key=True)
+    name                 = db.Column(db.String(255), nullable=False)          # company display name
+    # Invoice footer fields
+    footer_name          = db.Column(db.String(255), nullable=True)
+    footer_vat           = db.Column(db.String(100), nullable=True)
+    footer_address       = db.Column(db.String(500), nullable=True)
+    footer_phone         = db.Column(db.String(100), nullable=True)
+    footer_email         = db.Column(db.String(255), nullable=True)
+    footer_bank          = db.Column(db.String(255), nullable=True)
+    footer_bank_code     = db.Column(db.String(100), nullable=True)
+    footer_iban          = db.Column(db.String(100), nullable=True)
+    footer_director      = db.Column(db.String(255), nullable=True)
+    signature_path       = db.Column(db.String(500), nullable=True)           # Supabase path
+    invoice_prefix       = db.Column(db.Integer, nullable=False, default=30000)
+    created_at           = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'name': self.name,
+            'footer_name': self.footer_name, 'footer_vat': self.footer_vat,
+            'footer_address': self.footer_address, 'footer_phone': self.footer_phone,
+            'footer_email': self.footer_email, 'footer_bank': self.footer_bank,
+            'footer_bank_code': self.footer_bank_code, 'footer_iban': self.footer_iban,
+            'footer_director': self.footer_director,
+            'has_signature': bool(self.signature_path),
+            'invoice_prefix': self.invoice_prefix,
+        }
+
+
+class User(db.Model):
+    __tablename__ = 'user'
+    id            = db.Column(db.Integer, primary_key=True)
+    tenant_id     = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
+    email         = db.Column(db.String(255), nullable=False, unique=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role          = db.Column(db.String(20), nullable=False, default='user')  # 'superadmin' | 'user'
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    tenant        = db.relationship('Tenant', backref='users')
+
+
 class Company(db.Model):
+    __tablename__ = 'company'
     id         = db.Column(db.Integer, primary_key=True)
+    tenant_id  = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
     legal_form = db.Column(db.String(20), nullable=False, default='შპს')
     name       = db.Column(db.String(255), nullable=False)
     vat        = db.Column(db.String(100), nullable=False)
@@ -81,8 +162,11 @@ class Company(db.Model):
                 'vat': self.vat, 'address': self.address, 'email': self.email,
                 'status': self.status}
 
+
 class Product(db.Model):
+    __tablename__ = 'product'
     id         = db.Column(db.Integer, primary_key=True)
+    tenant_id  = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
     name       = db.Column(db.String(255), nullable=False)
     unit       = db.Column(db.String(50), nullable=False)
     price      = db.Column(db.String(50), nullable=False)
@@ -90,11 +174,15 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        return {'id': self.id, 'name': self.name, 'unit': self.unit, 'price': self.price, 'vat': self.vat}
+        return {'id': self.id, 'name': self.name, 'unit': self.unit,
+                'price': self.price, 'vat': self.vat}
+
 
 class Invoice(db.Model):
+    __tablename__ = 'invoice'
     id           = db.Column(db.Integer, primary_key=True)
-    number       = db.Column(db.Integer, nullable=False, unique=True)
+    tenant_id    = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
+    number       = db.Column(db.Integer, nullable=False)
     company_id   = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     amount       = db.Column(db.String(50), nullable=False)
     items        = db.Column(db.Text, nullable=True)
@@ -106,22 +194,60 @@ class Invoice(db.Model):
 
     def to_dict(self):
         return {
-            'id':     self.id,
-            'number': self.number,
+            'id': self.id, 'number': self.number,
             'company': self.company.to_dict() if self.company else None,
             'amount': self.amount,
             'items':  json.loads(self.items) if self.items else [],
             'sent':   self.sent,
             'error':  self.send_error,
-            'date':   self.generated_at.strftime('%d/%m/%Y'),
+            'date':   self.custom_date or self.generated_at.strftime('%d/%m/%Y'),
         }
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+def current_user():
+    uid = session.get('user_id')
+    if not uid:
+        return None
+    return db.session.get(User, uid)
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user():
+            if request.is_json:
+                return jsonify({'error': 'Unauthorized'}), 401
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated
+
+def get_tenant_id():
+    """Return the tenant_id to filter by. Superadmin uses query param ?tenant=X."""
+    u = current_user()
+    if u.role == 'superadmin':
+        tid = request.args.get('tenant') or (request.get_json(silent=True) or {}).get('tenant_id')
+        if tid:
+            return int(tid)
+        return None   # superadmin with no filter = all
+    return u.tenant_id
+
+def tenant_filter(query, model, allow_all=False):
+    """Apply tenant_id filter to a SQLAlchemy query."""
+    u = current_user()
+    if u.role == 'superadmin' and allow_all:
+        tid = request.args.get('tenant')
+        if tid:
+            return query.filter(model.tenant_id == int(tid))
+        return query  # all tenants
+    return query.filter(model.tenant_id == u.tenant_id)
 
 # ── PDF Builder ───────────────────────────────────────────────────────────────
 
 def build_pdf(invoice, show_details=True):
-    buf   = io.BytesIO()
-    W, H  = A4
-    mg    = 1.5 * cm
+    tenant = db.session.get(Tenant, invoice.tenant_id)
+    buf    = io.BytesIO()
+    W, H   = A4
+    mg     = 1.5 * cm
 
     doc = SimpleDocTemplate(buf, pagesize=A4,
         leftMargin=mg, rightMargin=mg, topMargin=mg, bottomMargin=mg)
@@ -142,8 +268,9 @@ def build_pdf(invoice, show_details=True):
             alignment={'LEFT':0,'CENTER':1,'RIGHT':2}[align],
             leading=leading or size*1.4))
 
-    # Title bar
-    t1 = Table([[p('შპს დემიქსი &nbsp;&nbsp; ინვოისი N %d' % invoice.number,
+    # Title bar — use tenant name
+    title_name = tenant.footer_name or tenant.name if tenant else 'Invoice'
+    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; ინვოისი N {invoice.number}',
                    size=15, bold=True, align='CENTER', color=colors.white)]],
                colWidths=[uw])
     t1.setStyle(TableStyle([
@@ -216,9 +343,8 @@ def build_pdf(invoice, show_details=True):
         total_row = [p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' ₾', bold=True, align='CENTER', size=11)]
 
     rows = [hdr] + data_rows + [total_row]
-
-    nr = len(rows)
-    st = [
+    nr   = len(rows)
+    st   = [
         ('BACKGROUND',(0,0),(-1,0),BLUE),
         ('GRID',(0,0),(-1,-1),0.5,LGRID),
         ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
@@ -241,16 +367,33 @@ def build_pdf(invoice, show_details=True):
         ('LEFTPADDING',(0,0),(-1,-1),10),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ]))
 
-    # Executor + signature
-    executor = (
-        '<b>შპს დემიქსი</b> &nbsp; ს/კ 405328998<br/>'
-        'ქინძმარაულის ქუჩა #17<br/>ტელ: 599 787 453<br/>'
-        'მეილი: info@demix.ge<br/>ბანკი: JSC &quot;Bank of Georgia&quot;<br/>'
-        'Bank code: BAGAGE22<br/>A/A: GE30BG0000000161105533'
-    )
-    sig_img = Image(SIG_PATH, width=6*cm, height=6*cm) if os.path.exists(SIG_PATH) else p('')
+    # Build executor text from tenant fields
+    if tenant:
+        lines = []
+        if tenant.footer_name:    lines.append(f'<b>{tenant.footer_name}</b>')
+        if tenant.footer_vat:     lines.append(f'ს/კ {tenant.footer_vat}')
+        if tenant.footer_address: lines.append(tenant.footer_address)
+        if tenant.footer_phone:   lines.append(f'ტელ: {tenant.footer_phone}')
+        if tenant.footer_email:   lines.append(f'მეილი: {tenant.footer_email}')
+        if tenant.footer_bank:    lines.append(f'ბანკი: {tenant.footer_bank}')
+        if tenant.footer_bank_code: lines.append(f'Bank code: {tenant.footer_bank_code}')
+        if tenant.footer_iban:    lines.append(f'A/A: {tenant.footer_iban}')
+        executor = '<br/>'.join(lines)
+        director = tenant.footer_director or ''
+    else:
+        executor = ''
+        director = ''
+
+    # Signature from Supabase
+    sig_img = p('')
+    if tenant and tenant.signature_path:
+        sig_bytes = get_signature_bytes(tenant.signature_path)
+        if sig_bytes:
+            sig_buf = io.BytesIO(sig_bytes)
+            sig_img = Image(sig_buf, width=6*cm, height=6*cm)
+
     rc = Table([
-        [p('დირექტორი<br/>გიორგი გოგოლაძე', size=10, leading=15, align='CENTER')],
+        [p(f'დირექტორი<br/>{director}', size=10, leading=15, align='CENTER')],
         [sig_img],
     ], colWidths=[uw*0.38])
     rc.setStyle(TableStyle([
@@ -272,31 +415,183 @@ def build_pdf(invoice, show_details=True):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def next_invoice_number():
-    last = db.session.query(db.func.max(Invoice.number)).scalar()
-    return (last + 1) if last else FIRST_NUM
+def next_invoice_number(tenant_id):
+    last = db.session.query(db.func.max(Invoice.number)).filter(Invoice.tenant_id == tenant_id).scalar()
+    if last:
+        return last + 1
+    t = db.session.get(Tenant, tenant_id)
+    return (t.invoice_prefix + 1) if t else 30001
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Auth Routes ───────────────────────────────────────────────────────────────
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    if current_user():
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+@app.route('/api/auth/login', methods=['POST'])
+def do_login():
+    d     = request.get_json()
+    email = (d.get('email') or '').strip().lower()
+    pwd   = d.get('password') or ''
+    user  = User.query.filter_by(email=email).first()
+    if not user or not check_password(pwd, user.password_hash):
+        return jsonify({'error': 'არასწორი მეილი ან პაროლი'}), 401
+    session.clear()
+    session['user_id']   = user.id
+    session['tenant_id'] = user.tenant_id
+    session['role']      = user.role
+    return jsonify({'ok': True, 'role': user.role, 'tenant_name': user.tenant.name})
+
+@app.route('/api/auth/logout', methods=['POST'])
+def do_logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+@app.route('/api/auth/me', methods=['GET'])
+@login_required
+def me():
+    u = current_user()
+    return jsonify({'email': u.email, 'role': u.role, 'tenant_name': u.tenant.name, 'tenant_id': u.tenant_id})
+
+# ── Main app page ─────────────────────────────────────────────────────────────
 
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
+# ── Superadmin: tenant management ─────────────────────────────────────────────
+
+@app.route('/api/admin/tenants', methods=['GET'])
+@login_required
+def admin_list_tenants():
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    tenants = Tenant.query.order_by(Tenant.name).all()
+    result  = []
+    for t in tenants:
+        u = User.query.filter_by(tenant_id=t.id).first()
+        result.append({**t.to_dict(), 'email': u.email if u else ''})
+    return jsonify(result)
+
+@app.route('/api/admin/tenants', methods=['POST'])
+@login_required
+def admin_create_tenant():
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d     = request.get_json()
+    email = (d.get('email') or '').strip().lower()
+    pwd   = (d.get('password') or '').strip()
+    name  = (d.get('name') or '').strip()
+    if not email or not pwd or not name:
+        return jsonify({'error': 'სახელი, მეილი და პაროლი სავალდებულოა'}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
+    tenant = Tenant(name=name)
+    db.session.add(tenant)
+    db.session.flush()
+    user = User(tenant_id=tenant.id, email=email,
+                password_hash=hash_password(pwd), role='user')
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'ok': True, 'tenant_id': tenant.id}), 201
+
+@app.route('/api/admin/tenants/<int:tid>', methods=['DELETE'])
+@login_required
+def admin_delete_tenant(tid):
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    tenant = db.session.get(Tenant, tid)
+    if not tenant:
+        return jsonify({'error': 'Not found'}), 404
+    # cascade delete
+    Invoice.query.filter_by(tenant_id=tid).delete()
+    Company.query.filter_by(tenant_id=tid).delete()
+    Product.query.filter_by(tenant_id=tid).delete()
+    User.query.filter_by(tenant_id=tid).delete()
+    db.session.delete(tenant)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── Settings (tenant profile) ─────────────────────────────────────────────────
+
+@app.route('/api/settings', methods=['GET'])
+@login_required
+def get_settings():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    return jsonify(t.to_dict())
+
+@app.route('/api/settings', methods=['PUT'])
+@login_required
+def save_settings():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    d = request.get_json()
+    t.footer_name      = d.get('footer_name', t.footer_name)
+    t.footer_vat       = d.get('footer_vat', t.footer_vat)
+    t.footer_address   = d.get('footer_address', t.footer_address)
+    t.footer_phone     = d.get('footer_phone', t.footer_phone)
+    t.footer_email     = d.get('footer_email', t.footer_email)
+    t.footer_bank      = d.get('footer_bank', t.footer_bank)
+    t.footer_bank_code = d.get('footer_bank_code', t.footer_bank_code)
+    t.footer_iban      = d.get('footer_iban', t.footer_iban)
+    t.footer_director  = d.get('footer_director', t.footer_director)
+    if d.get('invoice_prefix'):
+        t.invoice_prefix = int(d['invoice_prefix'])
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/settings/signature', methods=['POST'])
+@login_required
+def upload_signature():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f         = request.files['file']
+    ext       = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.png', '.jpg', '.jpeg'):
+        return jsonify({'error': 'PNG ან JPEG ფაილი სავალდებულოა'}), 400
+    file_bytes = f.read()
+    if len(file_bytes) > 2 * 1024 * 1024:
+        return jsonify({'error': 'ფაილი 2MB-ზე მეტია'}), 400
+    try:
+        path = upload_signature_to_supabase(file_bytes, f'signature{ext}', u.tenant_id)
+        t.signature_path = path
+        db.session.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ── Companies ─────────────────────────────────────────────────────────────────
+
 @app.route('/api/companies', methods=['GET'])
+@login_required
 def get_companies():
-    return jsonify([c.to_dict() for c in Company.query.order_by(Company.name).all()])
+    u  = current_user()
+    q  = Company.query.filter_by(tenant_id=u.tenant_id).order_by(Company.name)
+    return jsonify([c.to_dict() for c in q.all()])
 
 @app.route('/api/companies', methods=['POST'])
+@login_required
 def create_company():
-    d = request.get_json()
-    co = Company(name=d['name'].strip(), vat=d['vat'].strip(),
-                 address=d['address'].strip(), email=d['email'].strip())
+    u  = current_user()
+    d  = request.get_json()
+    co = Company(tenant_id=u.tenant_id,
+                 name=d['name'].strip(), vat=d['vat'].strip(),
+                 address=d['address'].strip(), email=d['email'].strip(),
+                 legal_form=d.get('legal_form','შპს'))
     db.session.add(co); db.session.commit()
     return jsonify(co.to_dict()), 201
 
 @app.route('/api/companies/<int:cid>', methods=['PUT'])
+@login_required
 def update_company(cid):
-    co = Company.query.get_or_404(cid)
+    u  = current_user()
+    co = Company.query.filter_by(id=cid, tenant_id=u.tenant_id).first_or_404()
     d  = request.get_json()
     email = d['email'].strip()
     for e in email.split(','):
@@ -312,60 +607,80 @@ def update_company(cid):
     return jsonify(co.to_dict())
 
 @app.route('/api/companies/<int:cid>', methods=['DELETE'])
+@login_required
 def delete_company(cid):
-    co = Company.query.get_or_404(cid)
-    # Remove invoices referencing this company first
+    u  = current_user()
+    co = Company.query.filter_by(id=cid, tenant_id=u.tenant_id).first_or_404()
     for inv in co.invoices:
         db.session.delete(inv)
     db.session.delete(co)
     db.session.commit()
     return jsonify({'success': True})
 
+# ── Products ──────────────────────────────────────────────────────────────────
+
 @app.route('/api/products', methods=['GET'])
+@login_required
 def get_products():
-    return jsonify([p.to_dict() for p in Product.query.order_by(Product.name).all()])
+    u = current_user()
+    return jsonify([p.to_dict() for p in Product.query.filter_by(tenant_id=u.tenant_id).order_by(Product.name).all()])
 
 @app.route('/api/products', methods=['POST'])
+@login_required
 def create_product():
-    d = request.get_json()
-    pr = Product(name=d['name'].strip(), unit=d['unit'].strip(), price=d['price'].strip(), vat=d.get('vat','no'))
+    u  = current_user()
+    d  = request.get_json()
+    pr = Product(tenant_id=u.tenant_id,
+                 name=d['name'].strip(), unit=d['unit'].strip(),
+                 price=d['price'].strip(), vat=d.get('vat','no'))
     db.session.add(pr); db.session.commit()
     return jsonify(pr.to_dict()), 201
 
 @app.route('/api/products/<int:pid>', methods=['PUT'])
+@login_required
 def update_product(pid):
-    pr = Product.query.get_or_404(pid)
+    u  = current_user()
+    pr = Product.query.filter_by(id=pid, tenant_id=u.tenant_id).first_or_404()
     d  = request.get_json()
-    pr.name=d['name'].strip(); pr.unit=d['unit'].strip(); pr.price=d['price'].strip(); pr.vat=d.get('vat','no')
+    pr.name=d['name'].strip(); pr.unit=d['unit'].strip()
+    pr.price=d['price'].strip(); pr.vat=d.get('vat','no')
     db.session.commit()
     return jsonify(pr.to_dict())
 
 @app.route('/api/products/<int:pid>', methods=['DELETE'])
+@login_required
 def delete_product(pid):
-    db.session.delete(Product.query.get_or_404(pid)); db.session.commit()
+    u  = current_user()
+    pr = Product.query.filter_by(id=pid, tenant_id=u.tenant_id).first_or_404()
+    db.session.delete(pr); db.session.commit()
     return jsonify({'success': True})
 
+# ── Invoices ──────────────────────────────────────────────────────────────────
+
 @app.route('/api/invoice-number', methods=['GET'])
+@login_required
 def get_invoice_number():
-    return jsonify({'number': next_invoice_number()})
+    u = current_user()
+    return jsonify({'number': next_invoice_number(u.tenant_id)})
 
 @app.route('/api/invoices/generate', methods=['POST'])
+@login_required
 def generate_invoice():
     try:
+        u           = current_user()
         d           = request.get_json()
-        company     = Company.query.get_or_404(d['company_id'])
+        company     = Company.query.filter_by(id=d['company_id'], tenant_id=u.tenant_id).first_or_404()
         custom_date = d.get('date', '').strip()
         items       = d.get('items', [])
-
         total = 0.0
         for item in items:
             try: total += float(str(item.get('total','0')).replace(',','.'))
             except: pass
-        amount_str = ('%.2f' % total) if total else '0.00'
-
+        amount_str   = ('%.2f' % total) if total else '0.00'
         show_details = d.get('show_details', True)
         inv = Invoice(
-            number      = next_invoice_number(),
+            tenant_id   = u.tenant_id,
+            number      = next_invoice_number(u.tenant_id),
             company_id  = company.id,
             amount      = amount_str,
             items       = json.dumps(items, ensure_ascii=False),
@@ -379,40 +694,42 @@ def generate_invoice():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/invoices/<int:inv_id>/send', methods=['POST'])
+@login_required
 def send_invoice(inv_id):
-    inv = Invoice.query.get_or_404(inv_id)
+    u   = current_user()
+    inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
     if inv.sent:
         return jsonify({'error': 'Already sent'}), 400
-
     pdf_bytes = build_pdf(inv)
-    tmp_path  = os.path.join(DATA_DIR, 'demix-invoice-%d.pdf' % inv.number)
+    tmp_path  = os.path.join(DATA_DIR, 'invoice-%d.pdf' % inv.number)
     with open(tmp_path, 'wb') as f:
         f.write(pdf_bytes)
-
     try:
         import win32com.client as win32, pythoncom, time
         pythoncom.CoInitialize()
         outlook = win32.Dispatch('outlook.application')
         mail    = outlook.CreateItem(0)
         mapi    = outlook.GetNamespace('MAPI')
+        tenant  = db.session.get(Tenant, u.tenant_id)
+        sender_email = tenant.footer_email or ''
         sender_account = None
         for i in range(1, mapi.Accounts.Count + 1):
             acc = mapi.Accounts.Item(i)
-            if acc.SmtpAddress.lower() == 'info@sawkobi.ge':
+            if acc.SmtpAddress.lower() == sender_email.lower():
                 sender_account = acc; break
         if not sender_account:
-            inv.send_error = 'Account info@sawkobi.ge not found in Outlook'
+            inv.send_error = f'Account {sender_email} not found in Outlook'
             db.session.commit()
             return jsonify({'error': inv.send_error}), 400
         mail.To      = '; '.join([e.strip() for e in inv.company.email.split(',') if e.strip()])
-        mail.Subject = 'Invoice N%d - შპს დემიქსი' % inv.number
+        mail.Subject = f'Invoice N{inv.number} - {tenant.footer_name or tenant.name}'
         mail._oleobj_.Invoke(*(64209, 0, 8, 0, sender_account))
-        our_text = '<p style="font-family:Calibri,sans-serif;font-size:11pt;">გთხოვთ იხილოთ თანდართული ინვოისი N%d.</p>' % inv.number
+        our_text = f'<p style="font-family:Calibri,sans-serif;font-size:11pt;">გთხოვთ იხილოთ თანდართული ინვოისი N{inv.number}.</p>'
         mail.Display(False); time.sleep(1.5)
         mail.GetInspector
         mail.HTMLBody = our_text + (mail.HTMLBody or '')
         att = mail.Attachments.Add(os.path.abspath(tmp_path))
-        att.DisplayName = 'demix-invoice-%d.pdf' % inv.number
+        att.DisplayName = f'invoice-{inv.number}.pdf'
         mail.Send()
         inv.sent = True; inv.send_error = None
         db.session.commit()
@@ -429,29 +746,81 @@ def send_invoice(inv_id):
         if os.path.exists(tmp_path): os.remove(tmp_path)
 
 @app.route('/api/invoices', methods=['GET'])
+@login_required
 def get_invoices():
-    return jsonify([i.to_dict() for i in Invoice.query.order_by(Invoice.generated_at.desc()).all()])
+    u = current_user()
+    return jsonify([i.to_dict() for i in Invoice.query.filter_by(tenant_id=u.tenant_id).order_by(Invoice.generated_at.desc()).all()])
 
 @app.route('/api/invoices/<int:inv_id>', methods=['DELETE'])
+@login_required
 def delete_invoice(inv_id):
-    inv = Invoice.query.get_or_404(inv_id)
+    u   = current_user()
+    inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
     if inv.sent:
         return jsonify({'error': 'Cannot delete a sent invoice'}), 400
     db.session.delete(inv); db.session.commit()
     return jsonify({'success': True})
 
+# ── Superadmin data views ─────────────────────────────────────────────────────
+
+@app.route('/api/auth/change-password', methods=['POST'])
+@login_required
+def change_password():
+    u   = current_user()
+    d   = request.get_json()
+    cur = d.get('current_password', '')
+    new = d.get('new_password', '')
+    if not check_password(cur, u.password_hash):
+        return jsonify({'error': 'მიმდინარე პაროლი არასწორია'}), 400
+    if len(new) < 6:
+        return jsonify({'error': 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს'}), 400
+    u.password_hash = hash_password(new)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/tenants/<int:tid>/reset-password', methods=['POST'])
+@login_required
+def admin_reset_password(tid):
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d   = request.get_json()
+    new = d.get('new_password', '')
+    if len(new) < 6:
+        return jsonify({'error': 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს'}), 400
+    u = User.query.filter_by(tenant_id=tid).first()
+    if not u:
+        return jsonify({'error': 'User not found'}), 404
+    u.password_hash = hash_password(new)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@login_required
+def admin_all_invoices():
+    if current_user().role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
+    tid = request.args.get('tenant')
+    q   = Invoice.query.order_by(Invoice.generated_at.desc())
+    if tid:
+        q = q.filter_by(tenant_id=int(tid))
+    return jsonify([i.to_dict() for i in q.all()])
+
+# ── Migrations ────────────────────────────────────────────────────────────────
+
 def run_migrations():
     import sqlalchemy
     migrations = [
-        ('invoice', 'send_error', 'VARCHAR(255)'),
+        ('invoice', 'send_error',  'VARCHAR(255)'),
         ('invoice', 'custom_date', 'VARCHAR(20)'),
         ('invoice', 'items',       'TEXT'),
+        ('invoice', 'tenant_id',   'INTEGER'),
         ('company', 'legal_form',  "VARCHAR(20) DEFAULT 'შპს'"),
         ('company', 'status',      "VARCHAR(20) DEFAULT 'active'"),
+        ('company', 'tenant_id',   'INTEGER'),
         ('product', 'vat',         "VARCHAR(5) DEFAULT 'no'"),
+        ('product', 'tenant_id',   'INTEGER'),
     ]
     for table, col, typ in migrations:
-        # Use a fresh connection per statement so one failure doesn't poison the rest
         try:
             with db.engine.connect() as conn:
                 conn.execute(sqlalchemy.text(
@@ -461,9 +830,23 @@ def run_migrations():
         except Exception:
             pass
 
+def ensure_superadmin():
+    """Create superadmin tenant + user if none exists."""
+    if User.query.filter_by(role='superadmin').first():
+        return
+    sa_email = os.environ.get('SUPERADMIN_EMAIL', 'admin@invoiceapp.com')
+    sa_pwd   = os.environ.get('SUPERADMIN_PASSWORD', 'changeme123')
+    t = Tenant(name='Super Admin', invoice_prefix=90000)
+    db.session.add(t); db.session.flush()
+    u = User(tenant_id=t.id, email=sa_email,
+             password_hash=hash_password(sa_pwd), role='superadmin')
+    db.session.add(u); db.session.commit()
+    print(f'[INIT] Superadmin created: {sa_email} / {sa_pwd}')
+
 with app.app_context():
     db.create_all()
     run_migrations()
+    ensure_superadmin()
 
 if __name__ == '__main__':
     app.run(debug=True)

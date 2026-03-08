@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>შესვლა — Invoice Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #181818; --surface2: #212121; --border: #2c2c2c;
+      --accent: #2C7BB6; --accent-dim: #1f5a8a; --text: #e8e2d9; --text-muted: #6a6258;
+      --text-soft: #a8a098; --danger: #c0614a;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-wrap {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .login-logo h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 600;
+    }
+    .login-logo span {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      display: block;
+      margin-top: 5px;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 32px;
+    }
+    .login-card h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 11px 13px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.14s;
+    }
+    .form-input:focus { border-color: var(--accent-dim); }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: background 0.14s;
+    }
+    .btn-login:hover:not(:disabled) { background: var(--accent-dim); }
+    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-msg {
+      background: rgba(192,97,74,0.12);
+      border: 1px solid rgba(192,97,74,0.3);
+      border-radius: 5px;
+      padding: 10px 13px;
+      font-size: 13px;
+      color: var(--danger);
+      margin-bottom: 16px;
+      display: none;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">
+    <h1>Invoice Manager</h1>
+    <span>სისტემაში შესვლა</span>
+  </div>
+  <div class="login-card">
+    <h2>შესვლა</h2>
+    <div class="error-msg" id="err-msg"></div>
+    <div class="form-group">
+      <label class="form-label">ელ. მეილი</label>
+      <input class="form-input" id="email" type="email" placeholder="თქვენი მეილი" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">პაროლი</label>
+      <input class="form-input" id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">შესვლა</button>
+  </div>
+</div>
+<script>
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function doLogin() {
+    const email = document.getElementById('email').value.trim();
+    const pwd   = document.getElementById('password').value;
+    const btn   = document.getElementById('login-btn');
+    const err   = document.getElementById('err-msg');
+
+    if (!email || !pwd) { showErr('გთხოვთ შეავსოთ ყველა ველი'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>იტვირთება...';
+    err.style.display = 'none';
+
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      });
+      const data = await res.json();
+      if (!res.ok) { showErr(data.error || 'შესვლა ვერ მოხერხდა'); return; }
+      window.location.href = '/';
+    } catch {
+      showErr('კავშირის შეცდომა');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'შესვლა';
+    }
+  }
+
+  function showErr(msg) {
+    const e = document.getElementById('err-msg');
+    e.textContent = msg;
+    e.style.display = 'block';
+  }
+</script>
+</body>
+</html>
