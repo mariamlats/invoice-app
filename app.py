@@ -576,16 +576,20 @@ def save_smtp():
 def test_smtp():
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
-    # ... (keep validation)
+    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
+        return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
+    
     try:
         import smtplib
         host = t.smtp_host
-        port = t.smtp_port or 587
+        port = int(t.smtp_port or 587)
         
-        # Explicit logic based on port
+        # Immediate connection based on port
         if port == 465:
+            # Port 465 uses Implicit SSL
             srv = smtplib.SMTP_SSL(host, port, timeout=10)
         else:
+            # Port 587 uses STARTTLS
             srv = smtplib.SMTP(host, port, timeout=10)
             srv.ehlo()
             if port == 587:
@@ -596,31 +600,54 @@ def test_smtp():
         srv.quit()
         return jsonify({'ok': True})
     except Exception as e:
+        # Returns the specific error (e.g., Auth failed, or Connection refused)
         return jsonify({'error': str(e)}), 400
 
-
-@app.route('/api/settings/signature', methods=['POST'])
+@app.route('/api/invoices/<int:inv_id>/send', methods=['POST'])
 @login_required
-def upload_signature():
+def send_invoice(inv_id):
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file'}), 400
-    f         = request.files['file']
-    ext       = os.path.splitext(f.filename)[1].lower()
-    if ext not in ('.png', '.jpg', '.jpeg'):
-        return jsonify({'error': 'PNG ან JPEG ფაილი სავალდებულოა'}), 400
-    file_bytes = f.read()
-    if len(file_bytes) > 2 * 1024 * 1024:
-        return jsonify({'error': 'ფაილი 2MB-ზე მეტია'}), 400
+    inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
+    
+    if not t.smtp_email or not t.smtp_password or not t.smtp_host:
+        return jsonify({'error': 'SMTP settings not configured'}), 400
+
     try:
-        path = upload_signature_to_supabase(file_bytes, f'signature{ext}', u.tenant_id)
-        t.signature_path = path
-        db.session.commit()
+        import smtplib
+        from email.message import EmailMessage
+        
+        # 1. Create PDF
+        pdf_data = create_invoice_pdf(inv, t)
+        
+        # 2. Build Email
+        msg = EmailMessage()
+        msg['Subject'] = f"ინვოისი #{inv.invoice_number}"
+        msg['From'] = t.smtp_email
+        msg['To'] = inv.client_email
+        msg.set_content(f"გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი #{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}")
+        msg.add_attachment(pdf_data, maintype='application', subtype='pdf', filename=f"invoice_{inv.invoice_number}.pdf")
+        
+        # 3. Secure Connection Logic
+        host = t.smtp_host
+        port = int(t.smtp_port or 587)
+        
+        if port == 465:
+            srv = smtplib.SMTP_SSL(host, port, timeout=15)
+        else:
+            srv = smtplib.SMTP(host, port, timeout=15)
+            srv.ehlo()
+            if port == 587:
+                srv.starttls()
+                srv.ehlo()
+        
+        srv.login(t.smtp_email, t.smtp_password)
+        srv.send_message(msg)
+        srv.quit()
+        
         return jsonify({'ok': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({'error': str(e)}), 400
 # ── Companies ─────────────────────────────────────────────────────────────────
 
 @app.route('/api/companies', methods=['GET'])
