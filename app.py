@@ -580,14 +580,24 @@ def test_smtp():
         return jsonify({'error': 'SMTP კონფიგურაცია არ არის შევსებული'}), 400
     try:
         import smtplib
-        port = t.smtp_port or 465
-        try:
-            with smtplib.SMTP_SSL(t.smtp_host, 465, timeout=10) as server:
-                server.login(t.smtp_email, t.smtp_password)
-        except Exception:
-            with smtplib.SMTP(t.smtp_host, 587, timeout=10) as server:
-                server.ehlo(); server.starttls(); server.ehlo()
-                server.login(t.smtp_email, t.smtp_password)
+        connected = False
+        last_err  = ''
+        for try_port, try_ssl in [(t.smtp_port or 465, True), (587, False)]:
+            try:
+                if try_ssl:
+                    srv = smtplib.SMTP_SSL(t.smtp_host, try_port, timeout=10)
+                else:
+                    srv = smtplib.SMTP(t.smtp_host, try_port, timeout=10)
+                    srv.ehlo(); srv.starttls(); srv.ehlo()
+                srv.login(t.smtp_email, t.smtp_password)
+                srv.quit()
+                connected = True
+                break
+            except Exception as ex:
+                last_err = str(ex)
+                continue
+        if not connected:
+            return jsonify({'error': last_err}), 400
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -777,30 +787,30 @@ def send_invoice(inv_id):
         part.add_header('Content-Disposition', f'attachment; filename="invoice-{inv.number}.pdf"')
         msg.attach(part)
 
-    def try_send(host, port, use_ssl):
-        import smtplib
-        if use_ssl:
-            server = smtplib.SMTP_SSL(host, port, timeout=15)
-        else:
-            server = smtplib.SMTP(host, port, timeout=15)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-        server.login(tenant.smtp_email, tenant.smtp_password)
-        server.sendmail(tenant.smtp_email, recipients, msg.as_string())
-        server.quit()
+        host = tenant.smtp_host
+        port = tenant.smtp_port or 465
+        sent = False
 
-    port = tenant.smtp_port or 465
-    host = tenant.smtp_host
-    try:
-        # Try configured port first, fallback to 587 STARTTLS
-        if port == 465:
+        # Try SSL first (port 465), then STARTTLS (port 587)
+        for try_port, try_ssl in [(port, True), (587, False)]:
             try:
-                try_send(host, 465, use_ssl=True)
+                if try_ssl:
+                    srv = smtplib.SMTP_SSL(host, try_port, timeout=15)
+                else:
+                    srv = smtplib.SMTP(host, try_port, timeout=15)
+                    srv.ehlo()
+                    srv.starttls()
+                    srv.ehlo()
+                srv.login(tenant.smtp_email, tenant.smtp_password)
+                srv.sendmail(tenant.smtp_email, recipients, msg.as_string())
+                srv.quit()
+                sent = True
+                break
             except Exception:
-                try_send(host, 587, use_ssl=False)
-        else:
-            try_send(host, port, use_ssl=False)
+                continue
+
+        if not sent:
+            raise Exception('SMTP კავშირი ვერ დამყარდა. შეამოწმეთ სერვერი და პაროლი.')
 
         inv.sent = True; inv.send_error = None
         db.session.commit()
