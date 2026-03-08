@@ -43,12 +43,14 @@ STORAGE_BUCKET       = 'signatures'
 def upload_signature_to_supabase(file_bytes: bytes, filename: str, tenant_id: int) -> str:
     """Upload signature to Supabase Storage, return public path key."""
     import urllib.request, urllib.error
-    path = f'tenant_{tenant_id}/{filename}'
-    url  = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}'
+    path     = f'tenant_{tenant_id}/{filename}'
+    url      = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}'
+    ext      = filename.rsplit('.', 1)[-1].lower()
+    mimetype = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
     req  = urllib.request.Request(url, data=file_bytes, method='POST')
     req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
-    req.add_header('Content-Type', 'image/png')
-    req.add_header('x-upsert', 'true')   # overwrite if exists
+    req.add_header('Content-Type', mimetype)
+    req.add_header('x-upsert', 'true')
     try:
         urllib.request.urlopen(req)
         return path
