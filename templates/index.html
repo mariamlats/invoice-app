@@ -861,6 +861,8 @@
       showToast('ელ. ფოსტის შაბლონი შენახულია', 'success');
     } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
   }
+
+  async function uploadSignature(input) {
     const file = input.files[0]; if (!file) return;
     const statusEl = document.getElementById('sig-status');
     statusEl.textContent = 'იტვირთება...';
