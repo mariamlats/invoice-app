@@ -12,11 +12,20 @@ echo Step 2: Building .exe...
 pyinstaller invoice.spec --clean
 
 echo.
+echo Step 3: Copying .env to dist...
+if exist ".env" (
+    copy ".env" "dist\.env"
+    echo .env copied to dist/
+) else (
+    echo WARNING: .env not found - remember to put it in dist/ manually!
+)
+
+echo.
 echo ================================
 if exist "dist\InvoiceManager.exe" (
     echo  BUILD SUCCESSFUL!
-    echo  Your .exe is at: dist\InvoiceManager.exe
-    echo  Copy that file to any Windows laptop and double-click to run.
+    echo  Distribute the entire dist\ folder.
+    echo  Users just double-click InvoiceManager.exe
 ) else (
     echo  BUILD FAILED - check errors above
 )
