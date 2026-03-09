@@ -634,6 +634,11 @@
         document.getElementById('admin-nav-item').style.display  = '';
       }
     } catch { window.location.href = '/login'; }
+    // Clear search fields — Chrome autofill can pre-populate them with saved credentials
+    setTimeout(() => {
+      document.getElementById('company-search-filter').value = '';
+      document.getElementById('product-search-filter').value = '';
+    }, 100);
     loadCompanies();
   }
 
