@@ -604,6 +604,45 @@ def get_signature():
     from flask import Response
     return Response(sig_bytes, mimetype=mime)
 
+@app.route('/api/settings/signature', methods=['POST'])
+@login_required
+def upload_signature():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    if 'file' not in request.files:
+        return jsonify({'error': 'ფაილი არ არის'}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({'error': 'ფაილი არ არის'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ('png', 'jpg', 'jpeg'):
+        return jsonify({'error': 'მხოლოდ PNG ან JPG'}), 400
+    file_bytes = f.read()
+    if len(file_bytes) > 2 * 1024 * 1024:
+        return jsonify({'error': 'ფაილი 2MB-ზე მეტია'}), 400
+    try:
+        path = upload_signature_to_supabase(file_bytes, f'signature.{ext}', u.tenant_id)
+        t.signature_path = path
+        db.session.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/settings/signature', methods=['GET'])
+@login_required
+def get_signature():
+    u = current_user()
+    t = db.session.get(Tenant, u.tenant_id)
+    if not t or not t.signature_path:
+        return jsonify({'error': 'არ არის'}), 404
+    sig_bytes = get_signature_bytes(t.signature_path)
+    if not sig_bytes:
+        return jsonify({'error': 'ვერ ჩაიტვირთა'}), 404
+    ext = t.signature_path.rsplit('.', 1)[-1].lower()
+    mime = 'image/png' if ext == 'png' else 'image/jpeg'
+    from flask import Response
+    return Response(sig_bytes, mimetype=mime)
+
 @app.route('/api/settings/smtp', methods=['PUT'])
 @login_required
 def save_smtp():
@@ -659,7 +698,7 @@ def send_invoice(inv_id):
     inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
 
     try:
-        pdf_data = create_invoice_pdf(inv, t)
+        pdf_data = build_pdf(inv)
 
         # Build subject and body from template (fallback to defaults)
         default_subject = f'ინვოისი #{inv.invoice_number}'
