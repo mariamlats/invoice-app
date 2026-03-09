@@ -126,6 +126,10 @@ class Tenant(db.Model):
     smtp_password        = db.Column(db.String(500), nullable=True)
     smtp_host            = db.Column(db.String(255), nullable=True)
     smtp_port            = db.Column(db.Integer, nullable=True, default=465)
+    # Email template
+    email_from           = db.Column(db.String(255), nullable=True)
+    email_subject        = db.Column(db.String(500), nullable=True)
+    email_body           = db.Column(db.Text, nullable=True)
     created_at           = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -142,6 +146,9 @@ class Tenant(db.Model):
             'smtp_host': self.smtp_host or '',
             'smtp_port': self.smtp_port or 465,
             'smtp_configured': bool(self.smtp_email and self.smtp_password),
+            'email_from':    self.email_from    or '',
+            'email_subject': self.email_subject or '',
+            'email_body':    self.email_body    or '',
         }
 
 
@@ -552,6 +559,9 @@ def save_settings():
     t.footer_director  = d.get('footer_director', t.footer_director)
     if d.get('invoice_prefix'):
         t.invoice_prefix = int(d['invoice_prefix'])
+    if 'email_from'    in d: t.email_from    = d['email_from'].strip()
+    if 'email_subject' in d: t.email_subject = d['email_subject'].strip()
+    if 'email_body'    in d: t.email_body    = d['email_body'].strip()
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -612,16 +622,22 @@ def send_invoice(inv_id):
     try:
         pdf_data = create_invoice_pdf(inv, t)
 
+        # Build subject and body from template (fallback to defaults)
+        default_subject = f'ინვოისი #{inv.invoice_number}'
+        default_body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
+                           f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
+        subject = (t.email_subject or default_subject).replace('{number}', str(inv.invoice_number))
+        body    = (t.email_body    or default_body   ).replace('{number}', str(inv.invoice_number))
+
         if t.smtp_email and t.smtp_password and t.smtp_host:
             # ── SMTP path (cloud / any platform) ──────────────────────────
             import smtplib
             from email.message import EmailMessage
             msg = EmailMessage()
-            msg['Subject'] = f'ინვოისი #{inv.invoice_number}'
+            msg['Subject'] = subject
             msg['From']    = t.smtp_email
             msg['To']      = inv.client_email
-            msg.set_content(f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
-                            f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
+            msg.set_content(body)
             msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
                                filename=f'invoice_{inv.invoice_number}.pdf')
             host = t.smtp_host
@@ -644,11 +660,19 @@ def send_invoice(inv_id):
             tmp.write(pdf_data)
             tmp.close()
             outlook = win32com.client.Dispatch('Outlook.Application')
+            # Switch to the right sender account if email_from is set
             mail = outlook.CreateItem(0)
+            if t.email_from:
+                try:
+                    for account in outlook.Session.Accounts:
+                        if account.SmtpAddress.lower() == t.email_from.lower():
+                            mail._oleobj_.Invoke(*(64209, 0, 8, 0, account))
+                            break
+                except Exception:
+                    pass
             mail.To      = inv.client_email
-            mail.Subject = f'ინვოისი #{inv.invoice_number}'
-            mail.Body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
-                            f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
+            mail.Subject = subject
+            mail.Body    = body
             mail.Attachments.Add(tmp.name)
             mail.Send()
             os.unlink(tmp.name)
@@ -893,6 +917,9 @@ def run_migrations():
         ('tenant', 'smtp_password', 'VARCHAR(500)'),
         ('tenant', 'smtp_host',     'VARCHAR(255)'),
         ('tenant', 'smtp_port',     'INTEGER DEFAULT 465'),
+        ('tenant', 'email_from',    'VARCHAR(255)'),
+        ('tenant', 'email_subject', 'VARCHAR(500)'),
+        ('tenant', 'email_body',    'TEXT'),
         ('invoice', 'send_error',  'VARCHAR(255)'),
         ('invoice', 'custom_date', 'VARCHAR(20)'),
         ('invoice', 'items',       'TEXT'),

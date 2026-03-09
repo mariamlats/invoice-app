@@ -362,7 +362,25 @@
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">ხელმოწერა</div>
+        <div class="settings-section-title">ელ. ფოსტის შაბლონი</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">მოქმედებს Outlook-ზეც და Gmail-ზეც. გამოიყენეთ <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px;">{number}</code> ინვოისის ნომრის ჩასასმელად.</p>
+        <div class="form-group">
+          <label class="form-label">გამგზავნი მეილი (Outlook-ისთვის)</label>
+          <input class="form-input" id="s-email-from" placeholder="info@demix.ge" autocomplete="off"/>
+          <p class="form-hint">თუ Outlook-ში რამდენიმე ანგარიში გაქვთ, მიუთითეთ საიდან გაიგზავნოს. Gmail-ისთვის ეს ველი იგნორირდება.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">საგანი (Subject)</label>
+          <input class="form-input" id="s-email-subject" placeholder="ინვოისი #{number}" autocomplete="off"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">მეილის ტექსტი (Body)</label>
+          <textarea class="form-textarea" id="s-email-body" rows="5" placeholder="გამარჯობა,&#10;&#10;გთხოვთ იხილოთ თანდართული ინვოისი #{number}.&#10;&#10;პატივისცემით,"></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="saveEmailTemplate()">შენახვა</button>
+        </div>
+      </div>
         <div class="sig-upload-area" onclick="document.getElementById('sig-file-input').click()">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin:0 auto; display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <p>დააჭირეთ ან ჩააგდეთ PNG/JPG ფაილი (მაქს. 2MB)</p>
@@ -802,6 +820,9 @@
       if (data.smtp_configured) {
         document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
       }
+      document.getElementById('s-email-from').value    = data.email_from    || '';
+      document.getElementById('s-email-subject').value = data.email_subject || '';
+      document.getElementById('s-email-body').value    = data.email_body    || '';
       if (data.has_signature) {
         document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
       }
@@ -828,7 +849,18 @@
     } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
   }
 
-  async function uploadSignature(input) {
+  async function saveEmailTemplate() {
+    const payload = {
+      email_from:    document.getElementById('s-email-from').value.trim(),
+      email_subject: document.getElementById('s-email-subject').value.trim(),
+      email_body:    document.getElementById('s-email-body').value.trim(),
+    };
+    try {
+      const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      showToast('ელ. ფოსტის შაბლონი შენახულია', 'success');
+    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+  }
     const file = input.files[0]; if (!file) return;
     const statusEl = document.getElementById('sig-status');
     statusEl.textContent = 'იტვირთება...';
