@@ -604,6 +604,7 @@ def get_signature():
     from flask import Response
     return Response(sig_bytes, mimetype=mime)
 
+
 @app.route('/api/settings/smtp', methods=['PUT'])
 @login_required
 def save_smtp():
@@ -662,11 +663,11 @@ def send_invoice(inv_id):
         pdf_data = build_pdf(inv)
 
         # Build subject and body from template (fallback to defaults)
-        default_subject = f'ინვოისი #{inv.invoice_number}'
+        default_subject = f'ინვოისი #{inv.number}'
         default_body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
-                           f'#{inv.invoice_number}.\n\nპატივისცემით,\n{t.name}')
-        subject = (t.email_subject or default_subject).replace('{number}', str(inv.invoice_number))
-        body    = (t.email_body    or default_body   ).replace('{number}', str(inv.invoice_number))
+                           f'#{inv.number}.\n\nპატივისცემით,\n{t.name}')
+        subject = (t.email_subject or default_subject).replace('{number}', str(inv.number))
+        body    = (t.email_body    or default_body   ).replace('{number}', str(inv.number))
 
         if t.smtp_email and t.smtp_password and t.smtp_host:
             # ── SMTP path (cloud / any platform) ──────────────────────────
@@ -678,7 +679,7 @@ def send_invoice(inv_id):
             msg['To']      = inv.client_email
             msg.set_content(body)
             msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
-                               filename=f'invoice_{inv.invoice_number}.pdf')
+                               filename=f'invoice_{inv.number}.pdf')
             host = t.smtp_host
             port = int(t.smtp_port or 587)
             if port == 465:
@@ -695,7 +696,7 @@ def send_invoice(inv_id):
             # ── Outlook path (local Windows only) ─────────────────────────
             import win32com.client, tempfile, os
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf',
-                                              prefix=f'invoice_{inv.invoice_number}_')
+                                              prefix=f'invoice_{inv.number}_')
             tmp.write(pdf_data)
             tmp.close()
             outlook = win32com.client.Dispatch('Outlook.Application')
