@@ -830,6 +830,7 @@
       document.getElementById('s-email-body').value    = data.email_body    || '';
       if (data.has_signature) {
         document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
+        document.getElementById('sig-preview-wrap').innerHTML = `<img src="/api/settings/signature?t=${Date.now()}" class="sig-preview"/>`;
       }
     } catch { showToast('პარამეტრების ჩატვირთვა ვერ მოხერხდა', 'error'); }
   }
