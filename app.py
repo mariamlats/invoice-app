@@ -676,7 +676,7 @@ def send_invoice(inv_id):
             msg = EmailMessage()
             msg['Subject'] = subject
             msg['From']    = t.smtp_email
-            msg['To']      = inv.client_email
+            msg['To']      = inv.company.email
             msg.set_content(body)
             msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
                                filename=f'invoice_{inv.number}.pdf')
@@ -710,7 +710,7 @@ def send_invoice(inv_id):
                             break
                 except Exception:
                     pass
-            mail.To      = inv.client_email
+            mail.To      = inv.company.email
             mail.Subject = subject
             mail.Body    = body
             mail.Attachments.Add(tmp.name)
