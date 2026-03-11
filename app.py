@@ -559,9 +559,9 @@ def save_settings():
     t.footer_director  = d.get('footer_director', t.footer_director)
     if d.get('invoice_prefix'):
         t.invoice_prefix = int(d['invoice_prefix'])
-    if 'email_from'    in d: t.email_from    = d['email_from'].strip()
-    if 'email_subject' in d: t.email_subject = d['email_subject'].strip()
-    if 'email_body'    in d: t.email_body    = d['email_body'].strip()
+    if 'email_from'    in d: t.email_from    = d['email_from'].strip() or None
+    if 'email_subject' in d: t.email_subject = d['email_subject'].strip() or None
+    if 'email_body'    in d: t.email_body    = d['email_body'].strip() or None
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -611,8 +611,8 @@ def save_smtp():
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
     d = request.get_json()
-    t.smtp_email    = (d.get('smtp_email') or '').strip()
-    t.smtp_host     = (d.get('smtp_host') or '').strip()
+    t.smtp_email    = (d.get('smtp_email') or '').strip() or None
+    t.smtp_host     = (d.get('smtp_host') or '').strip() or None
     t.smtp_port     = int(d.get('smtp_port') or 465)
     # Only update password if a new one was provided
     new_pwd = (d.get('smtp_password') or '').strip()
@@ -694,7 +694,8 @@ def send_invoice(inv_id):
             srv.quit()
         else:
             # ── Outlook path (local Windows only) ─────────────────────────
-            import win32com.client, tempfile, os
+            import win32com.client, tempfile, os, pythoncom
+            pythoncom.CoInitialize()
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf',
                                               prefix=f'invoice_{inv.number}_')
             tmp.write(pdf_data)
@@ -716,9 +717,15 @@ def send_invoice(inv_id):
             mail.Attachments.Add(tmp.name)
             mail.Send()
             os.unlink(tmp.name)
+            pythoncom.CoUninitialize()
 
+        inv.sent = True
+        inv.send_error = None
+        db.session.commit()
         return jsonify({'ok': True})
     except Exception as e:
+        inv.send_error = str(e)[:255]
+        db.session.commit()
         return jsonify({'error': str(e)}), 400
 # ── Companies ─────────────────────────────────────────────────────────────────
 
@@ -931,13 +938,9 @@ def admin_reset_email(tid):
     u.email = email
     db.session.commit()
     return jsonify({'ok': True})
-    if not u:
-        return jsonify({'error': 'User not found'}), 404
-    u.password_hash = hash_password(new)
-    db.session.commit()
-    return jsonify({'ok': True})
 
 
+@app.route('/api/admin/invoices', methods=['GET'])
 @login_required
 def admin_all_invoices():
     if current_user().role != 'superadmin':
