@@ -11,7 +11,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 import os, io, json, base64, sys, hashlib, secrets
 from functools import wraps
 
-#Version march 12
 # ── Load .env ─────────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
@@ -131,6 +130,13 @@ class Tenant(db.Model):
     email_from           = db.Column(db.String(255), nullable=True)
     email_subject        = db.Column(db.String(500), nullable=True)
     email_body           = db.Column(db.Text, nullable=True)
+    # English versions
+    footer_name_en       = db.Column(db.String(255), nullable=True)
+    footer_address_en    = db.Column(db.String(500), nullable=True)
+    footer_director_en   = db.Column(db.String(255), nullable=True)
+    footer_bank_en       = db.Column(db.String(255), nullable=True)
+    email_subject_en     = db.Column(db.String(500), nullable=True)
+    email_body_en        = db.Column(db.Text, nullable=True)
     created_at           = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -150,6 +156,12 @@ class Tenant(db.Model):
             'email_from':    self.email_from    or '',
             'email_subject': self.email_subject or '',
             'email_body':    self.email_body    or '',
+            'footer_name_en':     self.footer_name_en     or '',
+            'footer_address_en':  self.footer_address_en  or '',
+            'footer_director_en': self.footer_director_en or '',
+            'footer_bank_en':     self.footer_bank_en     or '',
+            'email_subject_en':   self.email_subject_en   or '',
+            'email_body_en':      self.email_body_en      or '',
         }
 
 
@@ -174,12 +186,13 @@ class Company(db.Model):
     address    = db.Column(db.String(500), nullable=False)
     email      = db.Column(db.String(255), nullable=False)
     status     = db.Column(db.String(20), nullable=False, default='active')
+    language   = db.Column(db.String(2), nullable=False, default='ka')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {'id': self.id, 'legal_form': self.legal_form, 'name': self.name,
                 'vat': self.vat, 'address': self.address, 'email': self.email,
-                'status': self.status}
+                'status': self.status, 'language': self.language or 'ka'}
 
 
 class Product(db.Model):
@@ -263,6 +276,7 @@ def tenant_filter(query, model, allow_all=False):
 # ── PDF Builder ───────────────────────────────────────────────────────────────
 
 def build_pdf(invoice, show_details=True):
+    is_en = (invoice.company.language or 'ka') == 'en'
     tenant = db.session.get(Tenant, invoice.tenant_id)
     buf    = io.BytesIO()
     W, H   = A4
@@ -288,8 +302,8 @@ def build_pdf(invoice, show_details=True):
             leading=leading or size*1.4))
 
     # Title bar — use tenant name
-    title_name = tenant.footer_name or tenant.name if tenant else 'Invoice'
-    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; ინვოისი N {invoice.number}',
+    title_name = (tenant.footer_name_en or tenant.footer_name or tenant.name) if (tenant and is_en) else (tenant.footer_name or tenant.name) if tenant else 'Invoice'
+    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; {"Invoice N" if is_en else "ინვოისი N"} {invoice.number}',
                    size=15, bold=True, align='CENTER', color=colors.white)]],
                colWidths=[uw])
     t1.setStyle(TableStyle([
@@ -299,7 +313,7 @@ def build_pdf(invoice, show_details=True):
     ]))
 
     # შემკვეთი + date
-    t2 = Table([[p('შემკვეთი:', bold=True, size=11),
+    t2 = Table([[p('Client:' if is_en else 'შემკვეთი:', bold=True, size=11),
                  p(date_str, bold=True, align='RIGHT', size=11)]],
                colWidths=[uw*0.62, uw*0.38])
     t2.setStyle(TableStyle([
@@ -310,9 +324,15 @@ def build_pdf(invoice, show_details=True):
     ]))
 
     # Client block
-    full_name = '%s %s' % (c.legal_form or 'შპს', c.name)
-    ct = '<b>%s</b><br/>ს/კ: %s<br/>იურიდიული მისამართი: %s<br/>ელ. მეილი: %s' % (
-         full_name, c.vat, c.address, c.email)
+    if is_en:
+        lf_en = {'შპს': 'LTD'}.get(c.legal_form, c.legal_form or '')
+        full_name = '%s %s' % (lf_en, c.name) if lf_en else c.name
+    else:
+        full_name = '%s %s' % (c.legal_form or 'შპს', c.name)
+    if is_en:
+        ct = '<b>%s</b><br/>ID: %s<br/>Address: %s<br/>Email: %s' % (full_name, c.vat, c.address, c.email)
+    else:
+        ct = '<b>%s</b><br/>ს/კ: %s<br/>იურიდიული მისამართი: %s<br/>ელ. მეილი: %s' % (full_name, c.vat, c.address, c.email)
     t3 = Table([[p(ct, leading=17, size=11)]], colWidths=[uw])
     t3.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),colors.white),
@@ -332,11 +352,11 @@ def build_pdf(invoice, show_details=True):
     if show_details:
         hdr = [
             p('#', bold=True, align='CENTER', color=colors.white, size=10),
-            p('პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
-            p('ზომის\nერთეული', bold=True, align='CENTER', color=colors.white, size=10),
-            p('რაოდენობა', bold=True, align='CENTER', color=colors.white, size=10),
-            p('ერთეულის ფასი', bold=True, align='CENTER', color=colors.white, size=10),
-            p('ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Product Name' if is_en else 'პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Unit' if is_en else 'ზომის\nერთეული', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Qty' if is_en else 'რაოდენობა', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Unit Price' if is_en else 'ერთეულის ფასი', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Amount' if is_en else 'ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
         ]
         data_rows = [[
             p(str(i), align='CENTER', size=10),
@@ -346,20 +366,20 @@ def build_pdf(invoice, show_details=True):
             p(str(item.get('price','')), align='CENTER', size=10),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''),p(''),p(''),p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''),p(''),p(''),p(''), p('Total:' if is_en else 'სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
     else:
         cw = [uw*0.06, uw*0.74, uw*0.20]
         hdr = [
             p('#', bold=True, align='CENTER', color=colors.white, size=10),
-            p('პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
-            p('ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Product Name' if is_en else 'პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Amount' if is_en else 'ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
         ]
         data_rows = [[
             p(str(i), align='CENTER', size=10),
             p(item.get('name',''), size=10, leading=14),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''), p('სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''), p('Total:' if is_en else 'სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
 
     rows = [hdr] + data_rows + [total_row]
     nr   = len(rows)
@@ -379,7 +399,7 @@ def build_pdf(invoice, show_details=True):
     t_items.setStyle(TableStyle(st))
 
     # შემსრულებელი label
-    t6 = Table([[p('შემსრულებელი:', bold=True, size=11)]], colWidths=[uw])
+    t6 = Table([[p('Executor:' if is_en else 'შემსრულებელი:', bold=True, size=11)]], colWidths=[uw])
     t6.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),LIGHT),
         ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
@@ -389,16 +409,20 @@ def build_pdf(invoice, show_details=True):
     # Build executor text from tenant fields
     if tenant:
         lines = []
-        if tenant.footer_name:    lines.append(f'<b>{tenant.footer_name}</b>')
-        if tenant.footer_vat:     lines.append(f'ს/კ {tenant.footer_vat}')
-        if tenant.footer_address: lines.append(tenant.footer_address)
-        if tenant.footer_phone:   lines.append(f'ტელ: {tenant.footer_phone}')
-        if tenant.footer_email:   lines.append(f'მეილი: {tenant.footer_email}')
-        if tenant.footer_bank:    lines.append(f'ბანკი: {tenant.footer_bank}')
+        _name    = (tenant.footer_name_en    or tenant.footer_name)    if is_en else tenant.footer_name
+        _address = (tenant.footer_address_en or tenant.footer_address) if is_en else tenant.footer_address
+        _bank    = (tenant.footer_bank_en    or tenant.footer_bank)    if is_en else tenant.footer_bank
+        _director= (tenant.footer_director_en or tenant.footer_director) if is_en else tenant.footer_director
+        if _name:    lines.append(f'<b>{_name}</b>')
+        if tenant.footer_vat: lines.append(f'ID: {tenant.footer_vat}' if is_en else f'ს/კ {tenant.footer_vat}')
+        if _address: lines.append(_address)
+        if tenant.footer_phone: lines.append(f'Tel: {tenant.footer_phone}' if is_en else f'ტელ: {tenant.footer_phone}')
+        if tenant.footer_email: lines.append(f'Email: {tenant.footer_email}' if is_en else f'მეილი: {tenant.footer_email}')
+        if _bank:    lines.append(f'Bank: {_bank}' if is_en else f'ბანკი: {_bank}')
         if tenant.footer_bank_code: lines.append(f'Bank code: {tenant.footer_bank_code}')
-        if tenant.footer_iban:    lines.append(f'A/A: {tenant.footer_iban}')
+        if tenant.footer_iban: lines.append(f'A/A: {tenant.footer_iban}')
         executor = '<br/>'.join(lines)
-        director = tenant.footer_director or ''
+        director = _director or ''
     else:
         executor = ''
         director = ''
@@ -412,7 +436,7 @@ def build_pdf(invoice, show_details=True):
             sig_img = Image(sig_buf, width=6*cm, height=6*cm)
 
     rc = Table([
-        [p(f'დირექტორი<br/>{director}', size=10, leading=15, align='CENTER')],
+        [p(f'Director<br/>{director}' if is_en else f'დირექტორი<br/>{director}', size=10, leading=15, align='CENTER')],
         [sig_img],
     ], colWidths=[uw*0.38])
     rc.setStyle(TableStyle([
@@ -452,9 +476,13 @@ def login_page():
 @app.route('/api/auth/login', methods=['POST'])
 def do_login():
     d     = request.get_json()
-    email = (d.get('email') or '').strip().lower()
+    raw   = (d.get('email') or '').strip().lower()
     pwd   = d.get('password') or ''
-    user  = User.query.filter_by(email=email).first()
+    # Allow login with full email OR just the username part (before @)
+    user  = User.query.filter_by(email=raw).first()
+    if not user and '@' not in raw:
+        # Try matching username portion of any email
+        user = User.query.filter(User.email.like(raw + '@%')).first()
     if not user or not check_password(pwd, user.password_hash):
         return jsonify({'error': 'არასწორი მეილი ან პაროლი'}), 401
     session.clear()
@@ -560,9 +588,15 @@ def save_settings():
     t.footer_director  = d.get('footer_director', t.footer_director)
     if d.get('invoice_prefix'):
         t.invoice_prefix = int(d['invoice_prefix'])
-    if 'email_from'    in d: t.email_from    = d['email_from'].strip() or None
-    if 'email_subject' in d: t.email_subject = d['email_subject'].strip() or None
-    if 'email_body'    in d: t.email_body    = d['email_body'].strip() or None
+    if 'email_from'       in d: t.email_from       = d['email_from'].strip() or None
+    if 'email_subject'    in d: t.email_subject    = d['email_subject'].strip() or None
+    if 'email_body'       in d: t.email_body       = d['email_body'].strip() or None
+    if 'footer_name_en'   in d: t.footer_name_en   = d['footer_name_en'].strip() or None
+    if 'footer_address_en' in d: t.footer_address_en = d['footer_address_en'].strip() or None
+    if 'footer_director_en' in d: t.footer_director_en = d['footer_director_en'].strip() or None
+    if 'footer_bank_en'   in d: t.footer_bank_en   = d['footer_bank_en'].strip() or None
+    if 'email_subject_en' in d: t.email_subject_en = d['email_subject_en'].strip() or None
+    if 'email_body_en'    in d: t.email_body_en    = d['email_body_en'].strip() or None
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -664,11 +698,19 @@ def send_invoice(inv_id):
         pdf_data = build_pdf(inv)
 
         # Build subject and body from template (fallback to defaults)
-        default_subject = f'ინვოისი #{inv.number}'
-        default_body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
-                           f'#{inv.number}.\n\nპატივისცემით,\n{t.name}')
-        subject = (t.email_subject or default_subject).replace('{number}', str(inv.number))
-        body    = (t.email_body    or default_body   ).replace('{number}', str(inv.number))
+        is_en = (inv.company.language or 'ka') == 'en'
+        if is_en:
+            default_subject = f'Invoice #{inv.number}'
+            default_body    = (f'Dear Sir/Madam,\n\nPlease find attached invoice '
+                               f'#{inv.number}.\n\nKind regards,\n{t.name}')
+            subject = (t.email_subject_en or default_subject).replace('{number}', str(inv.number))
+            body    = (t.email_body_en    or default_body   ).replace('{number}', str(inv.number))
+        else:
+            default_subject = f'ინვოისი #{inv.number}'
+            default_body    = (f'გამარჯობა,\n\nგთხოვთ იხილოთ თანდართული ინვოისი '
+                               f'#{inv.number}.\n\nპატივისცემით,\n{t.name}')
+            subject = (t.email_subject or default_subject).replace('{number}', str(inv.number))
+            body    = (t.email_body    or default_body   ).replace('{number}', str(inv.number))
 
         if t.smtp_email and t.smtp_password and t.smtp_host:
             # ── SMTP path (cloud / any platform) ──────────────────────────
@@ -677,7 +719,8 @@ def send_invoice(inv_id):
             msg = EmailMessage()
             msg['Subject'] = subject
             msg['From']    = t.smtp_email
-            msg['To']      = inv.company.email
+            recipients = [e.strip() for e in inv.company.email.split(',') if e.strip()]
+            msg['To']      = ', '.join(recipients)
             msg.set_content(body)
             msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
                                filename=f'invoice_{inv.number}.pdf')
@@ -691,7 +734,7 @@ def send_invoice(inv_id):
                 srv.starttls()
                 srv.ehlo()
             srv.login(t.smtp_email, t.smtp_password)
-            srv.send_message(msg)
+            srv.send_message(msg, to_addrs=recipients)
             srv.quit()
         else:
             # ── Outlook path (local Windows only) ─────────────────────────
@@ -712,7 +755,7 @@ def send_invoice(inv_id):
                             break
                 except Exception:
                     pass
-            mail.To      = inv.company.email
+            mail.To      = '; '.join([e.strip() for e in inv.company.email.split(',') if e.strip()])
             mail.Subject = subject
             mail.Body    = body
             mail.Attachments.Add(tmp.name)
@@ -745,7 +788,8 @@ def create_company():
     co = Company(tenant_id=u.tenant_id,
                  name=d['name'].strip(), vat=d['vat'].strip(),
                  address=d['address'].strip(), email=d['email'].strip(),
-                 legal_form=d.get('legal_form','შპს'))
+                 legal_form=d.get('legal_form','შპს'),
+                 language=d.get('language','ka'))
     db.session.add(co); db.session.commit()
     return jsonify(co.to_dict()), 201
 
@@ -765,6 +809,7 @@ def update_company(cid):
     co.address    = d['address'].strip()
     co.email      = email
     co.status     = d.get('status', 'active')
+    co.language   = d.get('language', 'ka')
     db.session.commit()
     return jsonify(co.to_dict())
 
@@ -973,6 +1018,13 @@ def run_migrations():
         ('company', 'tenant_id',   'INTEGER'),
         ('product', 'vat',         "VARCHAR(5) DEFAULT 'no'"),
         ('product', 'tenant_id',   'INTEGER'),
+        ('tenant', 'footer_name_en',    'VARCHAR(255)'),
+        ('tenant', 'footer_address_en', 'VARCHAR(500)'),
+        ('tenant', 'footer_director_en','VARCHAR(255)'),
+        ('tenant', 'footer_bank_en',    'VARCHAR(255)'),
+        ('tenant', 'email_subject_en',  'VARCHAR(500)'),
+        ('tenant', 'email_body_en',     'TEXT'),
+        ('company', 'language',         "VARCHAR(2) DEFAULT 'ka'"),
     ]
     for table, col, typ in migrations:
         try:

@@ -148,6 +148,14 @@
     .toast.error { border-left: 3px solid var(--danger); }
     @keyframes toastIn { from { transform: translateX(18px); opacity: 0; } to { opacity: 1; } }
 
+
+    /* Settings tabs */
+    .settings-tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px; width: fit-content; }
+    .settings-tab { padding: 8px 20px; border: none; background: transparent; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; border-radius: 5px; transition: all 0.14s; }
+    .settings-tab:hover { color: var(--text); background: var(--surface2); }
+    .settings-tab.active { background: var(--accent); color: #fff; }
+    .settings-tab-content { display: none; }
+    .settings-tab-content.active { display: block; }
     /* Signature upload */
     .sig-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.14s; }
     .sig-upload-area:hover { border-color: var(--accent); }
@@ -161,6 +169,34 @@
     .admin-table tr:last-child td { border-bottom: none; }
     .admin-table tr:hover td { background: var(--surface2); }
 
+
+    /* Theme swatches */
+    .theme-swatch { width: 80px; cursor: pointer; border-radius: 6px; border: 2px solid var(--border); overflow: hidden; transition: all 0.15s; text-align: center; }
+    .theme-swatch span { display: block; font-size: 11px; color: var(--text-muted); padding: 5px 0; font-family: 'DM Mono', monospace; }
+    .theme-swatch:hover { border-color: var(--accent); }
+    .theme-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(44,123,182,0.3); }
+
+    /* Themes */
+    body[data-theme="midnight"] {
+      --bg: #000000; --surface: #0a0a0a; --surface2: #111111; --border: #222222;
+      --accent: #7C3AED; --accent-dim: #5b21b6; --text: #e8e8e8; --text-muted: #555555;
+      --text-soft: #999999; --danger: #ef4444; --success: #22c55e;
+    }
+    body[data-theme="forest"] {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+      --accent: #238636; --accent-dim: #196127; --text: #e6edf3; --text-muted: #484f58;
+      --text-soft: #8b949e; --danger: #f85149; --success: #3fb950;
+    }
+    body[data-theme="warm"] {
+      --bg: #1a1612; --surface: #211e1a; --surface2: #2a2520; --border: #3d3630;
+      --accent: #c97d3a; --accent-dim: #a0621e; --text: #f0e8d8; --text-muted: #6b5e50;
+      --text-soft: #a89880; --danger: #e05c4a; --success: #6aaa6a;
+    }
+    body[data-theme="light"] {
+      --bg: #f5f5f5; --surface: #ffffff; --surface2: #f0f0f0; --border: #e0e0e0;
+      --accent: #2563eb; --accent-dim: #1d4ed8; --text: #111111; --text-muted: #999999;
+      --text-soft: #555555; --danger: #dc2626; --success: #16a34a;
+    }
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -308,160 +344,138 @@
   <!-- ── Settings ── -->
   <section class="page" id="page-settings">
     <div class="page-header">
-      <div><h2>პარამეტრები</h2><p>თქვენი კომპანიის პროფილი და ინვოისის ქვედა ნაწილი</p></div>
+      <div><h2>პარამეტრები</h2><p>კომპანიის პროფილი და კონფიგურაცია</p></div>
     </div>
-    <div class="settings-wrap">
-      <div class="settings-section">
-        <div class="settings-section-title">კომპანიის ინფორმაცია (ინვოისის ქვედა ნაწილი)</div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">კომპანიის სახელი (ინვოისში)</label>
-            <input class="form-input" id="s-footer-name" placeholder="შპს კომპანია" autocomplete="off"/>
+    <!-- Tabs -->
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="company">კომპანია</button>
+      <button class="settings-tab" data-tab="email">ელ. ფოსტა</button>
+      <button class="settings-tab" data-tab="interface">ინტერფეისი</button>
+      <button class="settings-tab" data-tab="account">ანგარიში</button>
+    </div>
+
+    <!-- ── Tab: Company ── -->
+    <div class="settings-tab-content active" id="stab-company">
+      <div class="settings-wrap">
+        <input type="text" style="display:none;" name="fake-user" autocomplete="username"/>
+        <input type="password" style="display:none;" name="fake-pwd" autocomplete="new-password"/>
+        <div class="settings-section">
+          <div class="settings-section-title">კომპანიის ინფორმაცია — ქართული</div>
+          <div class="form-grid-2">
+            <div class="form-group"><label class="form-label">კომპანიის სახელი</label><input class="form-input" id="s-footer-name" placeholder="შპს კომპანია" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">ს/კ</label><input class="form-input" id="s-footer-vat" placeholder="123456789" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">მისამართი</label><input class="form-input" id="s-footer-address" placeholder="ქ. თბილისი, ქუჩა #1" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">ტელეფონი</label><input class="form-input" id="s-footer-phone" placeholder="599 000 000" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">ელ. მეილი</label><input class="form-input" id="s-footer-email" placeholder="info@company.ge" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">დირექტორი</label><input class="form-input" id="s-footer-director" placeholder="სახელი გვარი" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">ბანკი</label><input class="form-input" id="s-footer-bank" placeholder='JSC "Bank of Georgia"' autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">Bank Code (SWIFT)</label><input class="form-input" id="s-footer-bank-code" placeholder="BAGAGE22" autocomplete="off"/></div>
+            <div class="form-group" style="grid-column:1/-1;"><label class="form-label">ანგარიში (IBAN)</label><input class="form-input" id="s-footer-iban" placeholder="GE00XX0000000000000000" autocomplete="off"/></div>
+            <div class="form-group" style="grid-column:1/-1;"><label class="form-label">ინვოისის საწყისი ნომერი</label><input class="form-input" id="s-invoice-prefix" placeholder="30000" type="number" autocomplete="off"/><p class="form-hint">პირველი ინვოისი იქნება ამ ნომერი + 1</p></div>
           </div>
-          <div class="form-group">
-            <label class="form-label">ს/კ (საიდენტიფიკაციო კოდი)</label>
-            <input class="form-input" id="s-footer-vat" placeholder="123456789" autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">მისამართი</label>
-            <input class="form-input" id="s-footer-address" placeholder="ქ. თბილისი, ქუჩა #1" autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ტელეფონი</label>
-            <input class="form-input" id="s-footer-phone" placeholder="599 000 000" autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ელ. მეილი</label>
-            <input class="form-input" id="s-footer-email" placeholder="info@company.ge" autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">დირექტორი</label>
-            <input class="form-input" id="s-footer-director" placeholder="სახელი გვარი" autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ბანკი</label>
-            <input class="form-input" id="s-footer-bank" placeholder='JSC "Bank of Georgia"' autocomplete="off"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Bank Code (SWIFT)</label>
-            <input class="form-input" id="s-footer-bank-code" placeholder="BAGAGE22" autocomplete="off"/>
-          </div>
-          <div class="form-group" style="grid-column: 1/-1;">
-            <label class="form-label">ანგარიში (IBAN)</label>
-            <input class="form-input" id="s-footer-iban" placeholder="GE00XX0000000000000000" autocomplete="off"/>
-          </div>
-          <div class="form-group" style="grid-column: 1/-1;">
-            <label class="form-label">ინვოისის საწყისი ნომერი</label>
-            <input class="form-input" id="s-invoice-prefix" placeholder="30000" type="number" autocomplete="off"/>
-            <p class="form-hint">პირველი ინვოისი იქნება ამ ნომერი + 1</p>
-          </div>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="saveSettings()">შენახვა</button></div>
         </div>
-        <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" onclick="saveSettings()">შენახვა</button>
+
+        <div class="settings-section">
+          <div class="settings-section-title">კომპანიის ინფორმაცია — English</div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">ეს ველები გამოჩნდება ინვოისზე, როდესაც კლიენტს ენა English-ზეა დაყენებული. IBAN, SWIFT და ს/კ ავტომატურად გადმოიტანება ქართული ვერსიიდან.</p>
+          <div class="form-grid-2">
+            <div class="form-group"><label class="form-label">Company Name</label><input class="form-input" id="s-footer-name-en" placeholder="Company Ltd" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">Director</label><input class="form-input" id="s-footer-director-en" placeholder="First Last" autocomplete="off"/></div>
+            <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Address</label><input class="form-input" id="s-footer-address-en" placeholder="1 Street Name, Tbilisi" autocomplete="off"/></div>
+            <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Bank</label><input class="form-input" id="s-footer-bank-en" placeholder='JSC "Bank of Georgia"' autocomplete="off"/></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="saveSettingsEN()">შენახვა</button></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">ხელმოწერა</div>
+          <div class="sig-upload-area" onclick="document.getElementById('sig-file-input').click()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin:0 auto; display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>დააჭირეთ ან ჩააგდეთ PNG/JPG ფაილი (მაქს. 2MB)</p>
+            <div id="sig-preview-wrap"></div>
+          </div>
+          <input type="file" id="sig-file-input" accept=".png,.jpg,.jpeg" style="display:none;" onchange="uploadSignature(this)"/>
+          <p class="form-hint" style="margin-top:8px;" id="sig-status"></p>
         </div>
       </div>
+    </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">ელ. ფოსტის შაბლონი</div>
-        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">მოქმედებს Outlook-ზეც და Gmail-ზეც. გამოიყენეთ <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px;">{number}</code> ინვოისის ნომრის ჩასასმელად.</p>
-        <div class="form-group">
-          <label class="form-label">გამგზავნი მეილი (Outlook-ისთვის)</label>
-          <input class="form-input" id="s-email-from" placeholder="info@demix.ge" autocomplete="off"/>
-          <p class="form-hint">თუ Outlook-ში რამდენიმე ანგარიში გაქვთ, მიუთითეთ საიდან გაიგზავნოს. Gmail-ისთვის ეს ველი იგნორირდება.</p>
+    <!-- ── Tab: Email ── -->
+    <div class="settings-tab-content" id="stab-email">
+      <div class="settings-wrap">
+        <div class="settings-section">
+          <div class="settings-section-title">ელ. ფოსტის შაბლონი — ქართული</div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">გამოიყენეთ <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px;">{number}</code> ინვოისის ნომრის ჩასასმელად.</p>
+          <div class="form-group"><label class="form-label">გამგზავნი მეილი (Outlook-ისთვის)</label><input class="form-input" id="s-email-from" placeholder="info@demix.ge" autocomplete="off"/><p class="form-hint">Gmail-ისთვის ეს ველი იგნორირდება.</p></div>
+          <div class="form-group"><label class="form-label">საგანი (Subject)</label><input class="form-input" id="s-email-subject" placeholder="ინვოისი #{number}" autocomplete="off"/></div>
+          <div class="form-group"><label class="form-label">მეილის ტექსტი</label><textarea class="form-textarea" id="s-email-body" rows="5" placeholder="გამარჯობა,&#10;&#10;გთხოვთ იხილოთ თანდართული ინვოისი #{number}.&#10;&#10;პატივისცემით,"></textarea></div>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="saveEmailTemplate()">შენახვა</button></div>
         </div>
-        <div class="form-group">
-          <label class="form-label">საგანი (Subject)</label>
-          <input class="form-input" id="s-email-subject" placeholder="ინვოისი #{number}" autocomplete="off"/>
+
+        <div class="settings-section">
+          <div class="settings-section-title">ელ. ფოსტის შაბლონი — English</div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">Used automatically when sending to English-language clients. Leave empty to use built-in defaults.</p>
+          <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="s-email-subject-en" placeholder="Invoice #{number}" autocomplete="off"/></div>
+          <div class="form-group"><label class="form-label">Body</label><textarea class="form-textarea" id="s-email-body-en" rows="5" placeholder="Dear Sir/Madam,&#10;&#10;Please find attached invoice #{number}.&#10;&#10;Kind regards,"></textarea></div>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="saveEmailTemplateEN()">შენახვა</button></div>
         </div>
-        <div class="form-group">
-          <label class="form-label">მეილის ტექსტი (Body)</label>
-          <textarea class="form-textarea" id="s-email-body" rows="5" placeholder="გამარჯობა,&#10;&#10;გთხოვთ იხილოთ თანდართული ინვოისი #{number}.&#10;&#10;პატივისცემით,"></textarea>
-        </div>
-        <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" onclick="saveEmailTemplate()">შენახვა</button>
+
+        <div class="settings-section">
+          <div class="settings-section-title">ელ. ფოსტის გაგზავნა (SMTP)</div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">Gmail-ისთვის გამოიყენეთ App Password.</p>
+          <div class="form-grid-2">
+            <div class="form-group"><label class="form-label">გამგზავნი მეილი</label><input class="form-input" id="s-smtp-email" type="email" placeholder="info@company.ge" autocomplete="new-password" oninput="autoFillSmtp()"/></div>
+            <div class="form-group"><label class="form-label">პაროლი / App Password</label><input class="form-input" id="s-smtp-password" type="password" placeholder="პაროლი ან 16-სიმბოლიანი App Password" autocomplete="new-password"/></div>
+            <div class="form-group"><label class="form-label">SMTP სერვერი</label><input class="form-input" id="s-smtp-host" placeholder="smtp.gmail.com" autocomplete="off"/></div>
+            <div class="form-group"><label class="form-label">პორტი</label><input class="form-input" id="s-smtp-port" type="number" placeholder="465" value="465" autocomplete="off"/></div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted);">
+            <strong style="color:var(--text-soft);display:block;margin-bottom:6px;">გავრცელებული SMTP სერვერები:</strong>
+            Gmail: smtp.gmail.com : 465 &nbsp;|&nbsp; Outlook: smtp.office365.com : 587 &nbsp;|&nbsp; Yahoo: smtp.mail.yahoo.com : 465
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-ghost" onclick="testSmtp()" id="test-smtp-btn">კავშირის შემოწმება</button>
+            <button class="btn btn-primary" onclick="saveSmtp()">შენახვა</button>
+          </div>
+          <p id="smtp-status" style="font-size:12px;margin-top:8px;text-align:right;"></p>
         </div>
       </div>
+    </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">ხელმოწერა</div>
-        <div class="sig-upload-area" onclick="document.getElementById('sig-file-input').click()">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted); margin:0 auto; display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <p>დააჭირეთ ან ჩააგდეთ PNG/JPG ფაილი (მაქს. 2MB)</p>
-          <div id="sig-preview-wrap"></div>
-        </div>
-        <input type="file" id="sig-file-input" accept=".png,.jpg,.jpeg" style="display:none;" onchange="uploadSignature(this)"/>
-        <p class="form-hint" style="margin-top:8px;" id="sig-status"></p>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">ელ. ფოსტის გაგზავნა (SMTP)</div>
-        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px;">შეავსეთ ეს ველები რომ ინვოისები გაიგზავნოს თქვენი ელ. ფოსტიდან. Gmail-ისთვის გამოიყენეთ App Password.</p>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">გამგზავნი მეილი</label>
-            <input class="form-input" id="s-smtp-email" type="email" placeholder="info@company.ge" autocomplete="new-password" oninput="autoFillSmtp()"/>
+    <!-- ── Tab: Interface ── -->
+    <div class="settings-tab-content" id="stab-interface">
+      <div class="settings-wrap">
+        <div class="settings-section">
+          <div class="settings-section-title">ინტერფეისის თემა</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;" id="theme-swatches">
+            <div class="theme-swatch active" data-theme="dark" title="მუქი"><div style="background:#0f0f0f;width:100%;height:32px;border-radius:4px 4px 0 0;"></div><div style="background:#2C7BB6;width:100%;height:8px;"></div><div style="background:#181818;width:100%;height:20px;border-radius:0 0 4px 4px;"></div><span>მუქი</span></div>
+            <div class="theme-swatch" data-theme="midnight" title="შავი"><div style="background:#000000;width:100%;height:32px;border-radius:4px 4px 0 0;"></div><div style="background:#7C3AED;width:100%;height:8px;"></div><div style="background:#0a0a0a;width:100%;height:20px;border-radius:0 0 4px 4px;"></div><span>შავი</span></div>
+            <div class="theme-swatch" data-theme="forest" title="მწვანე"><div style="background:#0d1117;width:100%;height:32px;border-radius:4px 4px 0 0;"></div><div style="background:#238636;width:100%;height:8px;"></div><div style="background:#161b22;width:100%;height:20px;border-radius:0 0 4px 4px;"></div><span>მწვანე</span></div>
+            <div class="theme-swatch" data-theme="warm" title="თბილი"><div style="background:#1a1612;width:100%;height:32px;border-radius:4px 4px 0 0;"></div><div style="background:#c97d3a;width:100%;height:8px;"></div><div style="background:#211e1a;width:100%;height:20px;border-radius:0 0 4px 4px;"></div><span>თბილი</span></div>
+            <div class="theme-swatch" data-theme="light" title="ღია"><div style="background:#f5f5f5;width:100%;height:32px;border-radius:4px 4px 0 0;"></div><div style="background:#2563eb;width:100%;height:8px;"></div><div style="background:#ffffff;width:100%;height:20px;border-radius:0 0 4px 4px;"></div><span>ღია</span></div>
           </div>
-          <div class="form-group">
-            <label class="form-label">პაროლი / App Password</label>
-            <input class="form-input" id="s-smtp-password" type="text" placeholder="პაროლი ან 16-სიმბოლიანი App Password" autocomplete="new-password"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">SMTP სერვერი</label>
-            <input class="form-input" id="s-smtp-host" placeholder="smtp.gmail.com"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">პორტი</label>
-            <input class="form-input" id="s-smtp-port" type="number" placeholder="465" value="465"/>
-          </div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted);">
-          <strong style="color:var(--text-soft);display:block;margin-bottom:6px;">გავრცელებული SMTP სერვერები:</strong>
-          Gmail: smtp.gmail.com : 465 &nbsp;|&nbsp;
-          Outlook/Hotmail: smtp.office365.com : 587 &nbsp;|&nbsp;
-          Yahoo: smtp.mail.yahoo.com : 465
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button class="btn btn-ghost" onclick="testSmtp()" id="test-smtp-btn">კავშირის შემოწმება</button>
-          <button class="btn btn-primary" onclick="saveSmtp()">შენახვა</button>
-        </div>
-        <p id="smtp-status" style="font-size:12px;margin-top:8px;text-align:right;"></p>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">მეილის შეცვლა</div>
-        <div class="form-group">
-          <label class="form-label">ახალი მეილი ან მომხმარებელი</label>
-          <input class="form-input" id="s-email-new" type="text" placeholder="new@example.com ან username" autocomplete="new-password"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">მიმდინარე პაროლი (დასადასტურებლად)</label>
-          <input class="form-input" id="s-email-pwd" type="text" placeholder="პაროლი"/>
-        </div>
-        <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" onclick="changeEmail()">მეილის შეცვლა</button>
         </div>
       </div>
+    </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">პაროლის შეცვლა</div>
-        <div class="form-group">
-          <label class="form-label">მიმდინარე პაროლი</label>
-          <div style="position:relative;">
-            <input class="form-input" id="s-pwd-current" type="text" placeholder="მიმდინარე პაროლი" style="padding-right:44px;"/>
-          </div>
+    <!-- ── Tab: Account ── -->
+    <div class="settings-tab-content" id="stab-account">
+      <div class="settings-wrap">
+        <div class="settings-section">
+          <div class="settings-section-title">მეილის შეცვლა</div>
+          <div class="form-group"><label class="form-label">ახალი მეილი ან მომხმარებელი</label><input class="form-input" id="s-email-new" type="text" placeholder="new@example.com ან username" autocomplete="off"/></div>
+          <div class="form-group"><label class="form-label">მიმდინარე პაროლი</label><input class="form-input" id="s-email-pwd" type="password" placeholder="პაროლი" autocomplete="new-password"/></div>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="changeEmail()">მეილის შეცვლა</button></div>
         </div>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">ახალი პაროლი</label>
-            <input class="form-input" id="s-pwd-new" type="text" placeholder="ახალი პაროლი"/>
+        <div class="settings-section">
+          <div class="settings-section-title">პაროლის შეცვლა</div>
+          <div class="form-group"><label class="form-label">მიმდინარე პაროლი</label><input class="form-input" id="s-pwd-current" type="password" placeholder="მიმდინარე პაროლი" autocomplete="current-password"/></div>
+          <div class="form-grid-2">
+            <div class="form-group"><label class="form-label">ახალი პაროლი</label><input class="form-input" id="s-pwd-new" type="password" placeholder="ახალი პაროლი" autocomplete="new-password"/></div>
+            <div class="form-group"><label class="form-label">გაიმეორეთ</label><input class="form-input" id="s-pwd-confirm" type="password" placeholder="გაიმეორეთ" autocomplete="new-password"/></div>
           </div>
-          <div class="form-group">
-            <label class="form-label">გაიმეორეთ ახალი პაროლი</label>
-            <input class="form-input" id="s-pwd-confirm" type="text" placeholder="გაიმეორეთ"/>
-          </div>
-        </div>
-        <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" onclick="changePassword()">პაროლის შეცვლა</button>
+          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-primary" onclick="changePassword()">პაროლის შეცვლა</button></div>
         </div>
       </div>
     </div>
@@ -497,11 +511,11 @@
     </div>
     <div class="form-group">
       <label class="form-label">ახალი პაროლი (სურვილისამებრ)</label>
-      <input class="form-input" id="reset-pwd-new" type="text" placeholder="დატოვეთ ცარიელი თუ არ იცვლება"/>
+      <input class="form-input" id="reset-pwd-new" type="password" placeholder="დატოვეთ ცარიელი თუ არ იცვლება" autocomplete="new-password"/>
     </div>
     <div class="form-group">
       <label class="form-label">გაიმეორეთ პაროლი</label>
-      <input class="form-input" id="reset-pwd-confirm" type="text" placeholder="გაიმეორეთ"/>
+      <input class="form-input" id="reset-pwd-confirm" type="password" placeholder="გაიმეორეთ" autocomplete="new-password"/>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('reset-pwd-modal')">გაუქმება</button>
@@ -527,12 +541,21 @@
     <div class="form-group"><label class="form-label">ს/კ</label><input class="form-input" id="f-vat" placeholder="418473048"/></div>
     <div class="form-group"><label class="form-label">მისამართი</label><textarea class="form-textarea" id="f-address" placeholder="თბილისი, ქუჩა #1"></textarea></div>
     <div class="form-group"><label class="form-label">ელ. მეილი</label><input class="form-input" id="f-email" placeholder="billing@company.com"/><p class="form-hint">რამდენიმე მეილის შემთხვევაში გამოყავით მძიმით</p></div>
-    <div class="form-group">
-      <label class="form-label">სტატუსი</label>
-      <select class="form-select" id="f-status">
-        <option value="active">აქტიური</option>
-        <option value="passive">პასიური</option>
-      </select>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label">სტატუსი</label>
+        <select class="form-select" id="f-status">
+          <option value="active">აქტიური</option>
+          <option value="passive">პასიური</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ინვოისის ენა</label>
+        <select class="form-select" id="f-language">
+          <option value="ka">ქართული</option>
+          <option value="en">English</option>
+        </select>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('company-modal')">გაუქმება</button>
@@ -707,6 +730,7 @@
     ['f-name','f-vat','f-address','f-email'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-legal-form').value = 'შპს';
     document.getElementById('f-status').value = 'active';
+    document.getElementById('f-language').value = 'ka';
     openModal('company-modal');
   }
   function openEditCompanyModal(id) {
@@ -719,6 +743,7 @@
     document.getElementById('f-address').value = c.address;
     document.getElementById('f-email').value = c.email;
     document.getElementById('f-status').value = c.status || 'active';
+    document.getElementById('f-language').value = c.language || 'ka';
     openModal('company-modal');
   }
   async function saveCompany() {
@@ -733,6 +758,7 @@
       vat: document.getElementById('f-vat').value.trim(),
       address: document.getElementById('f-address').value.trim(),
       email, status: document.getElementById('f-status').value,
+      language: document.getElementById('f-language').value,
     };
     if (!payload.name || !payload.vat || !payload.address || !payload.email) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
     try {
@@ -812,6 +838,7 @@
     try {
       const res  = await fetch('/api/settings');
       const data = await res.json();
+      // Georgian company info
       document.getElementById('s-footer-name').value      = data.footer_name      || '';
       document.getElementById('s-footer-vat').value       = data.footer_vat       || '';
       document.getElementById('s-footer-address').value   = data.footer_address   || '';
@@ -822,15 +849,25 @@
       document.getElementById('s-footer-bank-code').value = data.footer_bank_code || '';
       document.getElementById('s-footer-iban').value      = data.footer_iban      || '';
       document.getElementById('s-invoice-prefix').value   = data.invoice_prefix   || 30000;
-      document.getElementById('s-smtp-email').value     = data.smtp_email  || '';
-      document.getElementById('s-smtp-host').value      = data.smtp_host   || '';
-      document.getElementById('s-smtp-port').value      = data.smtp_port   || 465;
+      // English company info
+      document.getElementById('s-footer-name-en').value      = data.footer_name_en      || '';
+      document.getElementById('s-footer-address-en').value   = data.footer_address_en   || '';
+      document.getElementById('s-footer-director-en').value  = data.footer_director_en  || '';
+      document.getElementById('s-footer-bank-en').value      = data.footer_bank_en      || '';
+      // SMTP
+      document.getElementById('s-smtp-email').value = data.smtp_email || '';
+      document.getElementById('s-smtp-host').value  = data.smtp_host  || '';
+      document.getElementById('s-smtp-port').value  = data.smtp_port  || 465;
       if (data.smtp_configured) {
         document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
       }
-      document.getElementById('s-email-from').value    = data.email_from    || '';
-      document.getElementById('s-email-subject').value = data.email_subject || '';
-      document.getElementById('s-email-body').value    = data.email_body    || '';
+      // Email templates
+      document.getElementById('s-email-from').value       = data.email_from       || '';
+      document.getElementById('s-email-subject').value    = data.email_subject    || '';
+      document.getElementById('s-email-body').value       = data.email_body       || '';
+      document.getElementById('s-email-subject-en').value = data.email_subject_en || '';
+      document.getElementById('s-email-body-en').value    = data.email_body_en    || '';
+      // Signature
       if (data.has_signature) {
         document.getElementById('sig-status').textContent = '✓ ხელმოწერა ატვირთულია';
         document.getElementById('sig-preview-wrap').innerHTML = `<img src="/api/settings/signature?t=${Date.now()}" class="sig-preview"/>`;
@@ -1326,6 +1363,61 @@
       loadTenants();
     } catch { showToast('შეცდომა', 'error'); }
   }
+
+
+
+  async function saveSettingsEN() {
+    const payload = {
+      footer_name_en:      document.getElementById('s-footer-name-en').value.trim(),
+      footer_address_en:   document.getElementById('s-footer-address-en').value.trim(),
+      footer_director_en:  document.getElementById('s-footer-director-en').value.trim(),
+      footer_bank_en:      document.getElementById('s-footer-bank-en').value.trim(),
+    };
+    try {
+      const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      showToast('English ინფორმაცია შენახულია', 'success');
+    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+  }
+
+  async function saveEmailTemplateEN() {
+    const payload = {
+      email_subject_en: document.getElementById('s-email-subject-en').value.trim(),
+      email_body_en:    document.getElementById('s-email-body-en').value.trim(),
+    };
+    try {
+      const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error();
+      showToast('English შაბლონი შენახულია', 'success');
+    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+  }
+
+  // ── Settings tabs ────────────────────────────────────────────────────────────
+  document.querySelectorAll('.settings-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.settings-tab-content').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('stab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Theme ────────────────────────────────────────────────────────────────────
+  const THEMES = { dark: 'მუქი', midnight: 'შავი', forest: 'მწვანე', warm: 'თბილი', light: 'ღია' };
+  function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme === 'dark' ? '' : theme);
+    if (theme === 'dark') document.body.removeAttribute('data-theme');
+    localStorage.setItem('invoice-theme', theme);
+    document.querySelectorAll('.theme-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.theme === theme);
+    });
+  }
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.addEventListener('click', () => applyTheme(s.dataset.theme));
+  });
+  // Load saved theme
+  const savedTheme = localStorage.getItem('invoice-theme') || 'dark';
+  applyTheme(savedTheme);
 
   init();
 </script>
