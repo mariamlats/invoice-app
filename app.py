@@ -375,7 +375,7 @@ def build_pdf(invoice, show_details=True):
             p(str(item.get('price','')), align='CENTER', size=10),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''),p(''),p(''),p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''),p(''),p(''),p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' €', bold=True, align='CENTER', size=11)]
     else:
         cw = [uw*0.06, uw*0.74, uw*0.20]
         hdr = [
@@ -388,7 +388,7 @@ def build_pdf(invoice, show_details=True):
             p(item.get('name',''), size=10, leading=14),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' €', bold=True, align='CENTER', size=11)]
 
     rows = [hdr] + data_rows + [total_row]
     nr   = len(rows)

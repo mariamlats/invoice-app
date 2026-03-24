@@ -331,7 +331,7 @@
         </button>
         <div class="grand-total" style="margin-top:16px;">
           <span class="grand-total-label">სულ:</span>
-          <span class="grand-total-amount" id="grand-total-display">0.00 ₾</span>
+          <span class="grand-total-amount" id="grand-total-display">0.00 €</span>
         </div>
         <label style="display:flex;align-items:center;gap:10px;margin-top:14px;cursor:pointer;font-size:13px;color:var(--text-soft);">
           <input type="checkbox" id="show-details" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
@@ -551,9 +551,9 @@
     <div class="form-group">
       <label class="form-label">სამართლებრივი ფორმა</label>
       <select class="form-select" id="f-legal-form">
-        <option value="შპს">შპს</option>
-        <option value="ი/მ">ი/მ</option>
-        <option value="ფ/პ">ფ/პ</option>
+        <option value="შპს" data-i18n-opt="შპს">შპს</option>
+        <option value="ი/მ" data-i18n-opt="ი/მ">ი/მ</option>
+        <option value="ფ/პ" data-i18n-opt="ფ/პ">ფ/პ</option>
       </select>
     </div>
     <div class="form-group"><label class="form-label">სახელი</label><input class="form-input" id="f-name" placeholder="Company Ltd"/></div>
@@ -588,15 +588,15 @@
   <div class="modal">
     <h3 id="product-modal-title">პროდუქტის დამატება</h3>
     <input type="hidden" id="edit-product-id"/>
-    <div class="form-group"><label class="form-label">სახელი</label><input class="form-input" id="p-name" placeholder="პროდუქტის სახელი"/></div>
+    <div class="form-group"><label class="form-label">სახელი</label><input class="form-input" id="p-name" placeholder="Nome prodotto"/></div>
     <div class="form-group">
       <label class="form-label">ზომის ერთეული</label>
       <select class="form-select" id="p-unit">
         <option value="რაოდენობა">რაოდენობა</option>
-        <option value="მეტრი">მეტრი</option>
+        <option value="მეტრი">Metro</option>
       </select>
     </div>
-    <div class="form-group"><label class="form-label">ფასი (₾)</label><input class="form-input" id="p-price" placeholder="0.00"/></div>
+    <div class="form-group"><label class="form-label">ფასი (€)</label><input class="form-input" id="p-price" placeholder="0.00"/></div>
     <div class="form-group">
       <label class="form-label">დღგ</label>
       <select class="form-select" id="p-vat">
@@ -816,7 +816,7 @@
         <div class="card-name">${escHtml(pr.name)}</div>
         <div class="card-meta">
           <div class="card-meta-row"><span class="meta-label">${t('ერთეული')}</span><span class="meta-value">${escHtml(pr.unit)}</span></div>
-          <div class="card-meta-row"><span class="meta-label">${t('ფასი')}</span><span class="meta-value">${escHtml(pr.price)} ₾</span></div>
+          <div class="card-meta-row"><span class="meta-label">${t('ფასი')}</span><span class="meta-value">${escHtml(pr.price)} €</span></div>
           <div class="card-meta-row"><span class="meta-label">${t('დღგ')}</span><span class="meta-value">${pr.vat==='yes'?t('კი'):t('არა')}</span></div>
         </div>
       </div>`).join('');
@@ -1089,11 +1089,11 @@
           <input class="form-input" id="prow-qty-${id}" type="number" min="0" step="any" placeholder="1" value="1" oninput="recalcRow(${id})"/>
         </div>
         <div>
-          <label class="form-label" data-i18n="ფასი (₾)">ფასი (₾)</label>
+          <label class="form-label" data-i18n="ფასი (₾)">ფასი (€)</label>
           <input class="form-input" id="prow-price-${id}" type="number" min="0" step="any" placeholder="0.00" oninput="recalcRow(${id})"/>
         </div>
       </div>
-      <div class="product-row-total" id="prow-total-${id}">${t('ჯამი:')} 0.00 ₾</div>`;
+      <div class="product-row-total" id="prow-total-${id}">${t('ჯამი:')} 0.00 €</div>`;
     wrap.appendChild(div);
     document.addEventListener('click', function handler(e) {
       if (!e.target.closest('#prow-search-' + id) && !e.target.closest('#prow-dd-' + id)) {
@@ -1116,7 +1116,7 @@
   function showProductDropdown(rowId) { renderProductDropdown(rowId, products); }
   function renderProductDropdown(rowId, list) {
     const dd = document.getElementById('prow-dd-' + rowId); if (!dd) return;
-    dd.innerHTML = list.length ? list.map(pr => `<div class="dropdown-item" onclick="selectProduct(${rowId}, ${pr.id})">${escHtml(pr.name)} <span style="color:var(--text-muted);font-size:11px;"> — ${escHtml(pr.price)} ₾ / ${escHtml(pr.unit)}</span></div>`).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">ვერ მოიძებნა</div>';
+    dd.innerHTML = list.length ? list.map(pr => `<div class="dropdown-item" onclick="selectProduct(${rowId}, ${pr.id})">${escHtml(pr.name)} <span style="color:var(--text-muted);font-size:11px;"> — ${escHtml(pr.price)} € / ${escHtml(pr.unit)}</span></div>`).join('') : '<div class="dropdown-item" style="color:var(--text-muted);">ვერ მოიძებნა</div>';
     dd.style.display = 'block';
   }
   function selectProduct(rowId, productId) {
@@ -1134,7 +1134,7 @@
   function recalcRow(rowId) {
     const qty   = parseFloat((document.getElementById('prow-qty-' + rowId).value || '0').replace(',', '.')) || 0;
     const price = parseFloat((document.getElementById('prow-price-' + rowId).value || '0').replace(',', '.')) || 0;
-    document.getElementById('prow-total-' + rowId).textContent = t('ჯამი:') + ' ' + (qty * price).toFixed(2) + ' ₾';
+    document.getElementById('prow-total-' + rowId).textContent = t('ჯამი:') + ' ' + (qty * price).toFixed(2) + ' €';
     updateGrandTotal();
   }
 
@@ -1146,7 +1146,7 @@
       const price = parseFloat((document.getElementById('prow-price-' + rowId)?.value || '0').replace(',', '.')) || 0;
       total += qty * price;
     });
-    document.getElementById('grand-total-display').textContent = total.toFixed(2) + ' ₾';
+    document.getElementById('grand-total-display').textContent = total.toFixed(2) + ' €';
   }
 
   function collectItems() {
@@ -1224,7 +1224,7 @@
         <tr>
           <td><span style="font-family:'DM Mono',monospace;color:var(--accent);">${inv.number}</span></td>
           <td>${escHtml(inv.company ? inv.company.name : '—')}</td>
-          <td style="color:var(--text);">${escHtml(inv.amount)} ₾</td>
+          <td style="color:var(--text);">${escHtml(inv.amount)} €</td>
           <td>${inv.date}</td>
           <td>${inv.sent ? `<span class="badge badge-sent">${t('✓ გაგზავნილი')}</span>` : inv.error ? `<span class="badge badge-failed" title="${escHtml(inv.error)}">${t('✕ შეცდომა')}</span>` : `<span class="badge badge-pending">${t('⏳ მომლოდინე')}</span>`}</td>
           <td>${!inv.sent ? `<button class="btn btn-danger-outline btn-sm" onclick="deleteInvoice(${inv.id})">წაშლა</button>` : ''}</td>
@@ -1528,7 +1528,7 @@
     'პროდუქტი': 'Prodotto',
     'ერთეული': 'U.M.',
     'რაოდენობა': 'Qtà',
-    'ფასი (₾)': 'Prezzo (₾)',
+    'ფასი (₾)': 'Prezzo (€)',
     'ინვოისში ვაჩვენო რაოდენობა და ერთეული': 'Mostra quantità e unità in fattura',
     // History table
     'ინვოისი #': 'Fattura #',
@@ -1554,7 +1554,7 @@
     'პროდუქტის დამატება': 'Aggiungi Prodotto',
     'პროდუქტის რედაქტირება': 'Modifica Prodotto',
     'ზომის ერთეული': 'Unità di Misura',
-    'ფასი (₾)': 'Prezzo (₾)',
+    'ფასი (₾)': 'Prezzo (€)',
     'დღგ': 'IVA',
     'კი': 'Sì',
     'არა': 'No',
@@ -1677,6 +1677,10 @@
     '⏳ მომლოდინე': '⏳ In Attesa',
     'კომპანია': 'Azienda',
     'პაროლი': 'Password',
+    'შპს': 'S.r.l.',
+    'ი/მ': 'Imp. Ind.',
+    'ფ/პ': 'Lib. Prof.',
+    'Lingua Fattura': 'Lingua Fattura',
     'პაროლის შეცვლა': 'Cambia Password',
     'იტვირთება...': 'Caricamento...',
     'Gmail-ისთვის ეს ველი იგნორირდება.': 'Per Gmail questo campo viene ignorato.',
@@ -1700,6 +1704,10 @@
   function applyTranslations() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
       el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-opt]').forEach(el => {
+      const ka = el.getAttribute('data-i18n-opt');
+      el.textContent = t(ka);
     });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
       el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
