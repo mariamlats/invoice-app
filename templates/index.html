@@ -690,7 +690,7 @@
       const page = item.dataset.page;
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       item.classList.add('active');
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
       document.getElementById('page-' + page).classList.add('active');
       if (page === 'companies')   loadCompanies();
       if (page === 'products')    loadProducts();
@@ -947,13 +947,13 @@
       const data = await res.json();
       const tbody = document.getElementById('admin-tenants-tbody');
       if (!data.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">კომპანიები არ არის</td></tr>`; return; }
-      tbody.innerHTML = data.map(t => `
+      tbody.innerHTML = data.map(tn => `
         <tr>
-          <td><strong style="color:var(--text);">${escHtml(t.name)}</strong></td>
-          <td>${escHtml(t.email)}</td>
-          <td><span style="font-family:'DM Mono',monospace;color:var(--accent);">#${t.id}</span></td>
-          <td><button class="btn btn-ghost btn-sm" onclick="openResetPassword(${t.id}, '${escHtml(t.email)}')">პაროლის შეცვლა</button></td>
-          <td><button class="btn btn-danger-outline btn-sm" onclick="deleteTenant(${t.id}, '${escHtml(t.name)}')">წაშლა</button></td>
+          <td><strong style="color:var(--text);">${escHtml(tn.name)}</strong></td>
+          <td>${escHtml(tn.email)}</td>
+          <td><span style="font-family:'DM Mono',monospace;color:var(--accent);">#${tn.id}</span></td>
+          <td><button class="btn btn-ghost btn-sm" onclick="openResetPassword(${tn.id}, '${escHtml(tn.email)}')">პაროლის შეცვლა</button></td>
+          <td><button class="btn btn-danger-outline btn-sm" onclick="deleteTenant(${tn.id}, '${escHtml(tn.name)}')">წაშლა</button></td>
         </tr>`).join('');
     } catch { showToast('ჩატვირთვა ვერ მოხერხდა', 'error'); }
   }
@@ -1245,11 +1245,11 @@
     return new Blob([buf], { type });
   }
   function showToast(msg, type='success') {
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${type==='success'?'<polyline points="20,6 9,17 4,12"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}</svg>${msg}`;
-    document.getElementById('toasts').appendChild(t);
-    setTimeout(() => t.remove(), 3500);
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${type==='success'?'<polyline points="20,6 9,17 4,12"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}</svg>${msg}`;
+    document.getElementById('toasts').appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
   }
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1408,8 +1408,8 @@
   // ── Settings tabs ────────────────────────────────────────────────────────────
   document.querySelectorAll('.settings-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.settings-tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.settings-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.settings-tab-content').forEach(el => el.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('stab-' + tab.dataset.tab).classList.add('active');
     });
