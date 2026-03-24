@@ -276,7 +276,9 @@ def tenant_filter(query, model, allow_all=False):
 # ── PDF Builder ───────────────────────────────────────────────────────────────
 
 def build_pdf(invoice, show_details=True):
-    is_en = (invoice.company.language or 'ka') == 'en'
+    lang = invoice.company.language or 'ka'
+    is_en = lang == 'en'
+    is_it = lang == 'it'
     tenant = db.session.get(Tenant, invoice.tenant_id)
     buf    = io.BytesIO()
     W, H   = A4
@@ -303,7 +305,8 @@ def build_pdf(invoice, show_details=True):
 
     # Title bar — use tenant name
     title_name = (tenant.footer_name_en or tenant.footer_name or tenant.name) if (tenant and is_en) else (tenant.footer_name or tenant.name) if tenant else 'Invoice'
-    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; {"Invoice N" if is_en else "ინვოისი N"} {invoice.number}',
+    inv_label = "Invoice N" if is_en else ("Fattura N" if is_it else "ინვოისი N")
+    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; {inv_label} {invoice.number}',
                    size=15, bold=True, align='CENTER', color=colors.white)]],
                colWidths=[uw])
     t1.setStyle(TableStyle([
@@ -313,7 +316,7 @@ def build_pdf(invoice, show_details=True):
     ]))
 
     # შემკვეთი + date
-    t2 = Table([[p('Client:' if is_en else 'შემკვეთი:', bold=True, size=11),
+    t2 = Table([[p('Client:' if is_en else ('Cliente:' if is_it else 'შემკვეთი:'), bold=True, size=11),
                  p(date_str, bold=True, align='RIGHT', size=11)]],
                colWidths=[uw*0.62, uw*0.38])
     t2.setStyle(TableStyle([
@@ -327,10 +330,15 @@ def build_pdf(invoice, show_details=True):
     if is_en:
         lf_en = {'შპს': 'LTD'}.get(c.legal_form, c.legal_form or '')
         full_name = '%s %s' % (lf_en, c.name) if lf_en else c.name
+    elif is_it:
+        lf_it = {'შპს': 'S.r.l.', 'ი/მ': 'Imp. Ind.', 'ფ/პ': 'Lib. Prof.'}.get(c.legal_form, c.legal_form or '')
+        full_name = '%s %s' % (lf_it, c.name) if lf_it else c.name
     else:
         full_name = '%s %s' % (c.legal_form or 'შპს', c.name)
     if is_en:
         ct = '<b>%s</b><br/>ID: %s<br/>Address: %s<br/>Email: %s' % (full_name, c.vat, c.address, c.email)
+    elif is_it:
+        ct = '<b>%s</b><br/>P.IVA: %s<br/>Indirizzo: %s<br/>Email: %s' % (full_name, c.vat, c.address, c.email)
     else:
         ct = '<b>%s</b><br/>ს/კ: %s<br/>იურიდიული მისამართი: %s<br/>ელ. მეილი: %s' % (full_name, c.vat, c.address, c.email)
     t3 = Table([[p(ct, leading=17, size=11)]], colWidths=[uw])
@@ -352,11 +360,11 @@ def build_pdf(invoice, show_details=True):
     if show_details:
         hdr = [
             p('#', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Product Name' if is_en else 'პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Unit' if is_en else 'ზომის\nერთეული', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Qty' if is_en else 'რაოდენობა', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Unit Price' if is_en else 'ერთეულის ფასი', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Amount' if is_en else 'ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Product Name' if is_en else ('Descrizione' if is_it else 'პროდუქტის დასახელება'), bold=True, align='CENTER', color=colors.white, size=10),
+            p('Unit' if is_en else ('U.M.' if is_it else 'ზომის\nერთეული'), bold=True, align='CENTER', color=colors.white, size=10),
+            p('Qty' if is_en else ('Qtà' if is_it else 'რაოდენობა'), bold=True, align='CENTER', color=colors.white, size=10),
+            p('Unit Price' if is_en else ('Prezzo Unit.' if is_it else 'ერთეულის ფასი'), bold=True, align='CENTER', color=colors.white, size=10),
+            p('Amount' if is_en else ('Importo' if is_it else 'ღირებულება'), bold=True, align='CENTER', color=colors.white, size=10),
         ]
         data_rows = [[
             p(str(i), align='CENTER', size=10),
@@ -366,20 +374,20 @@ def build_pdf(invoice, show_details=True):
             p(str(item.get('price','')), align='CENTER', size=10),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''),p(''),p(''),p(''), p('Total:' if is_en else 'სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''),p(''),p(''),p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
     else:
         cw = [uw*0.06, uw*0.74, uw*0.20]
         hdr = [
             p('#', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Product Name' if is_en else 'პროდუქტის დასახელება', bold=True, align='CENTER', color=colors.white, size=10),
-            p('Amount' if is_en else 'ღირებულება', bold=True, align='CENTER', color=colors.white, size=10),
+            p('Product Name' if is_en else ('Descrizione' if is_it else 'პროდუქტის დასახელება'), bold=True, align='CENTER', color=colors.white, size=10),
+            p('Amount' if is_en else ('Importo' if is_it else 'ღირებულება'), bold=True, align='CENTER', color=colors.white, size=10),
         ]
         data_rows = [[
             p(str(i), align='CENTER', size=10),
             p(item.get('name',''), size=10, leading=14),
             p(str(item.get('total','')), align='CENTER', size=10),
         ] for i, item in enumerate(items, 1)]
-        total_row = [p(''), p('Total:' if is_en else 'სულ:', bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
+        total_row = [p(''), p('Total:' if is_en else ('Totale:' if is_it else 'სულ:'), bold=True, align='RIGHT', size=11), p(str(invoice.amount) + ' GEL', bold=True, align='CENTER', size=11)]
 
     rows = [hdr] + data_rows + [total_row]
     nr   = len(rows)
@@ -399,7 +407,7 @@ def build_pdf(invoice, show_details=True):
     t_items.setStyle(TableStyle(st))
 
     # შემსრულებელი label
-    t6 = Table([[p('Executor:' if is_en else 'შემსრულებელი:', bold=True, size=11)]], colWidths=[uw])
+    t6 = Table([[p('Executor:' if is_en else ('Fornitore:' if is_it else 'შემსრულებელი:'), bold=True, size=11)]], colWidths=[uw])
     t6.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),LIGHT),
         ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
@@ -414,11 +422,11 @@ def build_pdf(invoice, show_details=True):
         _bank    = (tenant.footer_bank_en    or tenant.footer_bank)    if is_en else tenant.footer_bank
         _director= (tenant.footer_director_en or tenant.footer_director) if is_en else tenant.footer_director
         if _name:    lines.append(f'<b>{_name}</b>')
-        if tenant.footer_vat: lines.append(f'ID: {tenant.footer_vat}' if is_en else f'ს/კ {tenant.footer_vat}')
+        if tenant.footer_vat: lines.append(f'ID: {tenant.footer_vat}' if is_en else (f'P.IVA: {tenant.footer_vat}' if is_it else f'ს/კ {tenant.footer_vat}'))
         if _address: lines.append(_address)
-        if tenant.footer_phone: lines.append(f'Tel: {tenant.footer_phone}' if is_en else f'ტელ: {tenant.footer_phone}')
-        if tenant.footer_email: lines.append(f'Email: {tenant.footer_email}' if is_en else f'მეილი: {tenant.footer_email}')
-        if _bank:    lines.append(f'Bank: {_bank}' if is_en else f'ბანკი: {_bank}')
+        if tenant.footer_phone: lines.append(f'Tel: {tenant.footer_phone}' if is_en else (f'Tel: {tenant.footer_phone}' if is_it else f'ტელ: {tenant.footer_phone}'))
+        if tenant.footer_email: lines.append(f'Email: {tenant.footer_email}' if is_en else (f'Email: {tenant.footer_email}' if is_it else f'მეილი: {tenant.footer_email}'))
+        if _bank:    lines.append(f'Bank: {_bank}' if is_en else (f'Banca: {_bank}' if is_it else f'ბანკი: {_bank}'))
         if tenant.footer_bank_code: lines.append(f'Bank code: {tenant.footer_bank_code}')
         if tenant.footer_iban: lines.append(f'A/A: {tenant.footer_iban}')
         executor = '<br/>'.join(lines)
@@ -436,7 +444,7 @@ def build_pdf(invoice, show_details=True):
             sig_img = Image(sig_buf, width=6*cm, height=6*cm)
 
     rc = Table([
-        [p(f'Director<br/>{director}' if is_en else f'დირექტორი<br/>{director}', size=10, leading=15, align='CENTER')],
+        [p(f'Director<br/>{director}' if is_en else (f'Direttore<br/>{director}' if is_it else f'დირექტორი<br/>{director}'), size=10, leading=15, align='CENTER')],
         [sig_img],
     ], colWidths=[uw*0.38])
     rc.setStyle(TableStyle([
@@ -698,11 +706,17 @@ def send_invoice(inv_id):
         pdf_data = build_pdf(inv)
 
         # Build subject and body from template (fallback to defaults)
-        is_en = (inv.company.language or 'ka') == 'en'
-        if is_en:
+        inv_lang = inv.company.language or 'ka'
+        if inv_lang == 'en':
             default_subject = f'Invoice #{inv.number}'
             default_body    = (f'Dear Sir/Madam,\n\nPlease find attached invoice '
                                f'#{inv.number}.\n\nKind regards,\n{t.name}')
+            subject = (t.email_subject_en or default_subject).replace('{number}', str(inv.number))
+            body    = (t.email_body_en    or default_body   ).replace('{number}', str(inv.number))
+        elif inv_lang == 'it':
+            default_subject = f'Fattura #{inv.number}'
+            default_body    = (f'Gentile Cliente,\n\nIn allegato trova la fattura '
+                               f'#{inv.number}.\n\nCordiali saluti,\n{t.name}')
             subject = (t.email_subject_en or default_subject).replace('{number}', str(inv.number))
             body    = (t.email_body_en    or default_body   ).replace('{number}', str(inv.number))
         else:

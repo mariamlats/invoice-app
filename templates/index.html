@@ -149,6 +149,12 @@
     @keyframes toastIn { from { transform: translateX(18px); opacity: 0; } to { opacity: 1; } }
 
 
+    .lang-btn { flex:1; padding:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.08em; border-radius:4px; cursor:pointer; transition:all 0.14s; }
+    .lang-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .lang-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .lang-btn { flex:1; padding:5px; border:1px solid var(--border); background:transparent; color:var(--text-muted); font-family:'DM Mono',monospace; font-size:10px; letter-spacing:0.08em; border-radius:4px; cursor:pointer; transition:all 0.14s; }
+    .lang-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .lang-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
     /* Settings tabs */
     .settings-tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px; width: fit-content; }
     .settings-tab { padding: 8px 20px; border: none; background: transparent; color: var(--text-muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; border-radius: 5px; transition: all 0.14s; }
@@ -210,34 +216,38 @@
     <span id="sidebar-tenant-name">იტვირთება...</span>
   </div>
   <nav class="sidebar-nav">
-    <div class="nav-label">მენიუ</div>
+    <div class="nav-label" data-i18n="მენიუ">მენიუ</div>
     <div class="nav-item active" data-page="companies">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>კლიენტები
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg data-i18n="კლიენტები">კლიენტები
     </div>
     <div class="nav-item" data-page="products">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>პროდუქტები
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg data-i18n="პროდუქტები">პროდუქტები
     </div>
     <div class="nav-item" data-page="new-invoice">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>ახალი ინვოისი
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg data-i18n="ახალი ინვოისი">ახალი ინვოისი
     </div>
     <div class="nav-item" data-page="history">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>ისტორია
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg data-i18n="ისტორია">ისტორია
     </div>
     <div class="nav-item" data-page="settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>პარამეტრები
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg data-i18n="პარამეტრები">პარამეტრები
     </div>
     <!-- Superadmin only -->
-    <div class="nav-label" id="admin-nav-label" style="display:none;">ადმინი</div>
+    <div class="nav-label" id="admin-nav-label" style="display:none;" data-i18n="ადმინი">ადმინი</div>
     <div class="nav-item" data-page="admin" id="admin-nav-item" style="display:none;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>კომპანიები
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg data-i18n="კომპანიები">კომპანიები
     </div>
   </nav>
+  <div style="padding: 10px 22px; border-top: 1px solid var(--border); display:flex; gap:6px;">
+      <button class="lang-btn active" id="lang-ka" onclick="setAppLang('ka')">ქართ</button>
+      <button class="lang-btn" id="lang-it" onclick="setAppLang('it')">ITA</button>
+    </div>
   <div class="sidebar-footer">
     <div class="user-info">
       <strong id="user-email-display"></strong>
       <span id="user-role-display"></span>
     </div>
-    <button class="btn-logout" onclick="doLogout()">გასვლა</button>
+    <button class="btn-logout" onclick="doLogout()" data-i18n="გასვლა">გასვლა</button>
   </div>
 </aside>
 
@@ -246,14 +256,14 @@
   <!-- ── Companies ── -->
   <section class="page active" id="page-companies">
     <div class="page-header">
-      <div><h2>კლიენტები</h2><p>მართეთ თქვენი კლიენტები</p></div>
+      <div><h2 data-i18n="კლიენტები">კლიენტები</h2><p data-i18n="მართეთ თქვენი კლიენტები">მართეთ თქვენი კლიენტები</p></div>
       <button class="btn btn-primary" onclick="openAddCompanyModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>კლიენტის დამატება
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg data-i18n="კლიენტის დამატება">კლიენტის დამატება
       </button>
     </div>
     <div class="search-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="company-search-filter" placeholder="კლიენტის ძიება..." autocomplete="new-password" oninput="renderCompanies()"/>
+      <input type="text" id="company-search-filter" placeholder="კლიენტის ძიება..." data-i18n-placeholder="კლიენტის ძიება..." autocomplete="new-password" oninput="renderCompanies()"/>
     </div>
     <div class="cards-grid" id="companies-grid"></div>
   </section>
@@ -261,14 +271,14 @@
   <!-- ── Products ── -->
   <section class="page" id="page-products">
     <div class="page-header">
-      <div><h2>პროდუქტები</h2><p>მართეთ პროდუქტების კატალოგი</p></div>
+      <div><h2 data-i18n="პროდუქტები">პროდუქტები</h2><p data-i18n="მართეთ პროდუქტების კატალოგი">მართეთ პროდუქტების კატალოგი</p></div>
       <button class="btn btn-primary" onclick="openAddProductModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>პროდუქტის დამატება
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg data-i18n="პროდუქტის დამატება">პროდუქტის დამატება
       </button>
     </div>
     <div class="search-bar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="product-search-filter" placeholder="პროდუქტის ძიება..." oninput="renderProducts()"/>
+      <input type="text" id="product-search-filter" placeholder="პროდუქტის ძიება..." data-i18n-placeholder="პროდუქტის ძიება..." oninput="renderProducts()"/>
     </div>
     <div class="cards-grid" id="products-grid"></div>
   </section>
@@ -276,27 +286,27 @@
   <!-- ── New Invoice ── -->
   <section class="page" id="page-new-invoice">
     <div class="page-header">
-      <div><h2>ახალი ინვოისი</h2><p>შეავსეთ ველები და დააგენერირეთ ინვოისი</p></div>
+      <div><h2 data-i18n="ახალი ინვოისი">ახალი ინვოისი</h2><p data-i18n="შეავსეთ ველები და დააგენერირეთ ინვოისი">შეავსეთ ველები და დააგენერირეთ ინვოისი</p></div>
     </div>
     <div class="invoice-form-wrap">
       <div class="form-card">
-        <div class="form-card-title">ინვოისის დეტალები</div>
+        <div class="form-card-title" data-i18n="ინვოისის დეტალები">ინვოისის დეტალები</div>
         <div class="form-group">
-          <label class="form-label">ინვოისის ნომერი</label>
+          <label class="form-label" data-i18n="ინვოისის ნომერი">ინვოისის ნომერი</label>
           <div class="invoice-number-preview" id="inv-number-display"><span>იტვირთება...</span></div>
         </div>
         <div class="form-group">
-          <label class="form-label">თარიღი</label>
+          <label class="form-label" data-i18n="თარიღი">თარიღი</label>
           <input class="form-input" id="inv-date" type="text" placeholder="dd/mm/yyyy"/>
         </div>
       </div>
 
       <div class="form-card">
-        <div class="form-card-title">კლიენტი</div>
+        <div class="form-card-title" data-i18n="კლიენტი">კლიენტი</div>
         <div class="form-group">
-          <label class="form-label">კომპანია</label>
+          <label class="form-label" data-i18n="კომპანია">კომპანია</label>
           <div class="dropdown-wrap">
-            <input class="form-input" id="company-search" placeholder="მოძებნეთ კომპანია..." autocomplete="new-password" oninput="filterCompanyDropdown()" onfocus="showCompanyDropdown()"/>
+            <input class="form-input" id="company-search" placeholder="მოძებნეთ კომპანია..." data-i18n-placeholder="მოძებნეთ კომპანია..." autocomplete="new-password" oninput="filterCompanyDropdown()" onfocus="showCompanyDropdown()"/>
             <div class="dropdown-list" id="company-dropdown"></div>
           </div>
           <input type="hidden" id="inv-company"/>
@@ -305,11 +315,11 @@
       </div>
 
       <div class="form-card">
-        <div class="form-card-title">პროდუქტები</div>
+        <div class="form-card-title" data-i18n="პროდუქტები">პროდუქტები</div>
         <div class="product-rows" id="product-rows"></div>
         <button class="add-product-btn" style="margin-top:12px;" onclick="addProductRow()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          პროდუქტის დამატება
+          <span data-i18n="პროდუქტის დამატება">პროდუქტის დამატება</span>
         </button>
         <div class="grand-total" style="margin-top:16px;">
           <span class="grand-total-label">სულ:</span>
@@ -317,13 +327,13 @@
         </div>
         <label style="display:flex;align-items:center;gap:10px;margin-top:14px;cursor:pointer;font-size:13px;color:var(--text-soft);">
           <input type="checkbox" id="show-details" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
-          ინვოისში ვაჩვენო რაოდენობა და ერთეული
+          <span data-i18n="ინვოისში ვაჩვენო რაოდენობა და ერთეული">ინვოისში ვაჩვენო რაოდენობა და ერთეული</span>
         </label>
       </div>
 
       <button class="btn btn-primary" style="width:100%; justify-content:center; padding:13px;" onclick="generateInvoice()" id="generate-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-        ინვოისის შექმნა
+        <span data-i18n="ინვოისის შექმნა">ინვოისის შექმნა</span>
       </button>
     </div>
   </section>
@@ -331,11 +341,11 @@
   <!-- ── History ── -->
   <section class="page" id="page-history">
     <div class="page-header">
-      <div><h2>ინვოისების ისტორია</h2><p>ყველა გენერირებული ინვოისი</p></div>
+      <div><h2 data-i18n="ინვოისების ისტორია">ინვოისების ისტორია</h2><p data-i18n="ყველა გენერირებული ინვოისი">ყველა გენერირებული ინვოისი</p></div>
     </div>
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
       <table class="history-table">
-        <thead><tr><th>ინვოისი #</th><th>კლიენტი</th><th>თანხა</th><th>თარიღი</th><th>სტატუსი</th><th></th></tr></thead>
+        <thead><tr><th data-i18n="ინვოისი #">ინვოისი #</th><th data-i18n="კლიენტი">კლიენტი</th><th data-i18n="თანხა">თანხა</th><th data-i18n="თარიღი">თარიღი</th><th data-i18n="სტატუსი">სტატუსი</th><th></th></tr></thead>
         <tbody id="history-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">იტვირთება...</td></tr></tbody>
       </table>
     </div>
@@ -344,14 +354,14 @@
   <!-- ── Settings ── -->
   <section class="page" id="page-settings">
     <div class="page-header">
-      <div><h2>პარამეტრები</h2><p>კომპანიის პროფილი და კონფიგურაცია</p></div>
+      <div><h2 data-i18n="პარამეტრები">პარამეტრები</h2><p data-i18n="კომპანიის პროფილი და კონფიგურაცია">კომპანიის პროფილი და კონფიგურაცია</p></div>
     </div>
     <!-- Tabs -->
     <div class="settings-tabs">
-      <button class="settings-tab active" data-tab="company">კომპანია</button>
-      <button class="settings-tab" data-tab="email">ელ. ფოსტა</button>
-      <button class="settings-tab" data-tab="interface">ინტერფეისი</button>
-      <button class="settings-tab" data-tab="account">ანგარიში</button>
+      <button class="settings-tab active" data-tab="company" data-i18n="კომპანია">კომპანია</button>
+      <button class="settings-tab" data-tab="email" data-i18n="ელ. ფოსტა">ელ. ფოსტა</button>
+      <button class="settings-tab" data-tab="interface" data-i18n="ინტერფეისი">ინტერფეისი</button>
+      <button class="settings-tab" data-tab="account" data-i18n="ანგარიში">ანგარიში</button>
     </div>
 
     <!-- ── Tab: Company ── -->
@@ -484,9 +494,9 @@
   <!-- ── Admin (superadmin only) ── -->
   <section class="page" id="page-admin">
     <div class="page-header">
-      <div><h2>კომპანიების მართვა</h2><p>ყველა რეგისტრირებული კომპანია</p></div>
+      <div><h2 data-i18n="კომპანიების მართვა">კომპანიების მართვა</h2><p data-i18n="ყველა რეგისტრირებული კომპანია">ყველა რეგისტრირებული კომპანია</p></div>
       <button class="btn btn-primary" onclick="openAddTenantModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>კომპანიის დამატება
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg data-i18n="კომპანიის დამატება">კომპანიის დამატება
       </button>
     </div>
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;">
@@ -552,8 +562,8 @@
       <div class="form-group">
         <label class="form-label">ინვოისის ენა</label>
         <select class="form-select" id="f-language">
-          <option value="ka">ქართული</option>
           <option value="en">English</option>
+          <option value="it">Italiano</option>
         </select>
       </div>
     </div>
@@ -627,7 +637,7 @@
     </div>
     <div class="pdf-iframe-wrap"><iframe id="pdf-iframe"></iframe></div>
     <div class="pdf-actions">
-      <div id="sending-indicator" class="sending-state" style="display:none;"><div class="spinner"></div>იგზავნება Outlook-ით…</div>
+      <div id="sending-indicator" class="sending-state" style="display:none;"><div class="spinner"></div id="sending-text">იგზავნება Outlook-ით…</div>
       <button class="btn btn-ghost" onclick="closeModal('pdf-modal')">გაუქმება</button>
       <button class="btn btn-success" id="send-btn" onclick="sendInvoice()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
@@ -654,7 +664,7 @@
       currentUser = await res.json();
       document.getElementById('sidebar-tenant-name').textContent = currentUser.tenant_name;
       document.getElementById('user-email-display').textContent  = currentUser.email;
-      document.getElementById('user-role-display').textContent   = currentUser.role === 'superadmin' ? 'სუპერ ადმინი' : 'მომხმარებელი';
+      document.getElementById('user-role-display').textContent   = currentUser.role === 'superadmin' ? t('სუპერ ადმინი') : t('მომხმარებელი');
       if (currentUser.role === 'superadmin') {
         document.getElementById('admin-nav-label').style.display = '';
         document.getElementById('admin-nav-item').style.display  = '';
@@ -666,6 +676,7 @@
       document.getElementById('product-search-filter').value = '';
     }, 100);
     loadCompanies();
+    applyTranslations();
   }
 
   async function doLogout() {
@@ -697,7 +708,7 @@
       if (res.status === 401) { window.location.href = '/login'; return; }
       companies = await res.json();
       renderCompanies();
-    } catch { showToast('კლიენტების ჩატვირთვა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('კლიენტების ჩატვირთვა ვერ მოხერხდა') || 'კლიენტების ჩატვირთვა ვერ მოხერხდა', 'error'); }
   }
 
   function renderCompanies() {
@@ -725,7 +736,7 @@
   }
 
   function openAddCompanyModal() {
-    document.getElementById('company-modal-title').textContent = 'კლიენტის დამატება';
+    document.getElementById('company-modal-title').textContent = t('კლიენტის დამატება');
     document.getElementById('edit-company-id').value = '';
     ['f-name','f-vat','f-address','f-email'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-legal-form').value = 'შპს';
@@ -735,7 +746,7 @@
   }
   function openEditCompanyModal(id) {
     const c = companies.find(x => x.id === id); if (!c) return;
-    document.getElementById('company-modal-title').textContent = 'კლიენტის რედაქტირება';
+    document.getElementById('company-modal-title').textContent = t('კლიენტის რედაქტირება');
     document.getElementById('edit-company-id').value = id;
     document.getElementById('f-legal-form').value = c.legal_form || 'შპს';
     document.getElementById('f-name').value = c.name;
@@ -750,7 +761,7 @@
     const id    = document.getElementById('edit-company-id').value;
     const email = document.getElementById('f-email').value.trim();
     for (const e of email.split(',')) {
-      if (!e.trim().includes('@')) { showToast('მეილი არასწორია', 'error'); return; }
+      if (!e.trim().includes('@')) { showToast(t('მეილი არასწორია'), 'error'); return; }
     }
     const payload = {
       legal_form: document.getElementById('f-legal-form').value,
@@ -760,14 +771,14 @@
       email, status: document.getElementById('f-status').value,
       language: document.getElementById('f-language').value,
     };
-    if (!payload.name || !payload.vat || !payload.address || !payload.email) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (!payload.name || !payload.vat || !payload.address || !payload.email) { showToast(t('შეავსეთ ყველა ველი'), 'error'); return; }
     try {
       const res = await fetch(id ? `/api/companies/${id}` : '/api/companies', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || 'შენახვა ვერ მოხერხდა', 'error'); return; }
       closeModal('company-modal'); await loadCompanies();
       showToast(id ? 'კლიენტი განახლდა' : 'კლიენტი დაემატა', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Products ─────────────────────────────────────────────────────────────────
@@ -803,7 +814,7 @@
   }
 
   function openAddProductModal() {
-    document.getElementById('product-modal-title').textContent = 'პროდუქტის დამატება';
+    document.getElementById('product-modal-title').textContent = t('პროდუქტის დამატება');
     document.getElementById('edit-product-id').value = '';
     document.getElementById('p-name').value = '';
     document.getElementById('p-unit').value = 'რაოდენობა';
@@ -813,7 +824,7 @@
   }
   function openEditProductModal(id) {
     const pr = products.find(x => x.id === id); if (!pr) return;
-    document.getElementById('product-modal-title').textContent = 'პროდუქტის რედაქტირება';
+    document.getElementById('product-modal-title').textContent = t('პროდუქტის რედაქტირება');
     document.getElementById('edit-product-id').value = id;
     document.getElementById('p-name').value = pr.name;
     document.getElementById('p-unit').value = pr.unit;
@@ -824,13 +835,13 @@
   async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const payload = { name: document.getElementById('p-name').value.trim(), unit: document.getElementById('p-unit').value, price: document.getElementById('p-price').value.trim(), vat: document.getElementById('p-vat').value };
-    if (!payload.name) { showToast('სახელი სავალდებულოა', 'error'); return; }
+    if (!payload.name) { showToast(t('სახელი სავალდებულოა'), 'error'); return; }
     try {
       const res = await fetch(id ? `/api/products/${id}` : '/api/products', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
       closeModal('product-modal'); await loadProducts();
       showToast(id ? 'პროდუქტი განახლდა' : 'პროდუქტი დაემატა', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────────
@@ -891,8 +902,8 @@
     try {
       const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
-      showToast('პარამეტრები შენახულია', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+      showToast(t('პარამეტრები შენახულია'), 'success');
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   async function saveEmailTemplate() {
@@ -904,8 +915,8 @@
     try {
       const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
-      showToast('ელ. ფოსტის შაბლონი შენახულია', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+      showToast(t('ელ. ფოსტის შაბლონი შენახულია'), 'success');
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   async function uploadSignature(input) {
@@ -958,13 +969,13 @@
       email:    document.getElementById('t-email').value.trim(),
       password: document.getElementById('t-password').value,
     };
-    if (!payload.name || !payload.email || !payload.password) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (!payload.name || !payload.email || !payload.password) { showToast(t('შეავსეთ ყველა ველი'), 'error'); return; }
     try {
       const res  = await fetch('/api/admin/tenants', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || 'შეცდომა', 'error'); return; }
       closeModal('tenant-modal');
-      showToast('კომპანია დაემატა', 'success');
+      showToast(t('კომპანია დაემატა'), 'success');
       loadTenants();
     } catch { showToast('შეცდომა', 'error'); }
   }
@@ -973,15 +984,15 @@
     if (!confirm(`წაშლა: ${name}?\n\nეს წაშლის ყველა კლიენტს, პროდუქტს და ინვოისს!`)) return;
     try {
       await fetch(`/api/admin/tenants/${id}`, { method: 'DELETE' });
-      showToast('კომპანია წაიშალა', 'success');
+      showToast(t('კომპანია წაიშალა'), 'success');
       loadTenants();
-    } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('წაშლა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Delete ───────────────────────────────────────────────────────────────────
   function askDelete(type, id, name) {
     deleteTarget = { type, id };
-    document.getElementById('confirm-title').textContent = type === 'company' ? 'კლიენტის წაშლა' : 'პროდუქტის წაშლა';
+    document.getElementById('confirm-title').textContent = type === 'company' ? t('კლიენტის წაშლა') : t('პროდუქტის წაშლა');
     document.getElementById('confirm-name').textContent = name;
     openModal('confirm-modal');
   }
@@ -990,9 +1001,9 @@
     try {
       await fetch(`/api/${type === 'company' ? 'companies' : 'products'}/${id}`, { method: 'DELETE' });
       closeModal('confirm-modal');
-      if (type === 'company') { await loadCompanies(); showToast('კლიენტი წაიშალა', 'success'); }
-      else { await loadProducts(); showToast('პროდუქტი წაიშალა', 'success'); }
-    } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
+      if (type === 'company') { await loadCompanies(); showToast(t('კლიენტი წაიშალა'), 'success'); }
+      else { await loadProducts(); showToast(t('პროდუქტი წაიშალა'), 'success'); }
+    } catch { showToast(t('წაშლა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Invoice Form ─────────────────────────────────────────────────────────────
@@ -1013,6 +1024,7 @@
       document.getElementById('inv-number-display').innerHTML = `<strong style="font-size:16px;">${numData.number}</strong> <span>შემდეგი ნომერი</span>`;
     } catch { showToast('ჩატვირთვა ვერ მოხერხდა', 'error'); }
     addProductRow();
+    applyTranslations();
   }
 
   function filterCompanyDropdown() {
@@ -1049,10 +1061,10 @@
       <button class="remove-row-btn" onclick="removeProductRow(${id})" title="წაშლა">✕</button>
       <div class="product-row-grid">
         <div>
-          <label class="form-label">პროდუქტი</label>
+          <label class="form-label" data-i18n="პროდუქტი">პროდუქტი</label>
           <div class="dropdown-wrap">
-            <input class="form-input" id="prow-search-${id}" placeholder="მოძებნეთ..." autocomplete="off"
-              oninput="filterProductDropdown(${id})" onfocus="showProductDropdown(${id})"/>
+            <input class="form-input" id="prow-search-${id}" autocomplete="off"
+              oninput="filterProductDropdown(${id})" onfocus="showProductDropdown(${id})" placeholder="${t('მოძებნეთ...')}"/>
             <div class="dropdown-list" id="prow-dd-${id}"></div>
           </div>
           <input type="hidden" id="prow-pid-${id}"/>
@@ -1060,15 +1072,15 @@
           <input type="hidden" id="prow-unit-${id}"/>
         </div>
         <div>
-          <label class="form-label">ერთეული</label>
+          <label class="form-label" data-i18n="ერთეული">ერთეული</label>
           <input class="form-input" id="prow-unitdisplay-${id}" readonly style="background:var(--surface);color:var(--text-muted);"/>
         </div>
         <div>
-          <label class="form-label">რაოდენობა</label>
+          <label class="form-label" data-i18n="რაოდენობა">რაოდენობა</label>
           <input class="form-input" id="prow-qty-${id}" type="number" min="0" step="any" placeholder="1" value="1" oninput="recalcRow(${id})"/>
         </div>
         <div>
-          <label class="form-label">ფასი (₾)</label>
+          <label class="form-label" data-i18n="ფასი (₾)">ფასი (₾)</label>
           <input class="form-input" id="prow-price-${id}" type="number" min="0" step="any" placeholder="0.00" oninput="recalcRow(${id})"/>
         </div>
       </div>
@@ -1144,9 +1156,9 @@
 
   async function generateInvoice() {
     const company_id = parseInt(document.getElementById('inv-company').value) || 0;
-    if (!company_id) { showToast('გთხოვთ აირჩიოთ კომპანია', 'error'); return; }
+    if (!company_id) { showToast(t('გთხოვთ აირჩიოთ კომპანია'), 'error'); return; }
     const items = collectItems();
-    if (!items.length) { showToast('გთხოვთ დაამატოთ მინიმუმ ერთი პროდუქტი', 'error'); return; }
+    if (!items.length) { showToast(t('გთხოვთ დაამატოთ მინიმუმ ერთი პროდუქტი'), 'error'); return; }
     const btn = document.getElementById('generate-btn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> მიმდინარეობს...';
@@ -1180,7 +1192,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Send failed');
       closeModal('pdf-modal');
-      showToast('ინვოისი გაიგზავნა!', 'success');
+      showToast(t('ინვოისი გაიგზავნა!'), 'success');
       currentInvoiceId = null;
       await initInvoiceForm();
     } catch(e) {
@@ -1198,6 +1210,7 @@
       const data  = await res.json();
       const tbody = document.getElementById('history-tbody');
       if (!data.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">ინვოისები არ არის</td></tr>`; return; }
+      applyTranslations();
       tbody.innerHTML = data.map(inv => `
         <tr>
           <td><span style="font-family:'DM Mono',monospace;color:var(--accent);">${inv.number}</span></td>
@@ -1215,7 +1228,7 @@
     try {
       await fetch('/api/invoices/' + id, { method: 'DELETE' });
       showToast('ინვოისი წაიშალა', 'success'); loadHistory();
-    } catch { showToast('წაშლა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('წაშლა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Modals ───────────────────────────────────────────────────────────────────
@@ -1269,7 +1282,7 @@
       document.getElementById('s-smtp-password').value = '';
       document.getElementById('s-smtp-password').placeholder = '••••••••  (შენახულია)';
       showToast('ელ. ფოსტის პარამეტრები შენახულია', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   async function testSmtp() {
@@ -1290,7 +1303,7 @@
       }
     } catch {
       status.style.color = 'var(--danger)';
-      status.textContent = '✕ შეცდომა';
+      status.textContent = t('✕ შეცდომა');
     } finally {
       btn.disabled = false;
       btn.textContent = 'კავშირის შემოწმება';
@@ -1301,7 +1314,7 @@
   async function changeEmail() {
     const newEmail = document.getElementById('s-email-new').value.trim();
     const pwd      = document.getElementById('s-email-pwd').value;
-    if (!newEmail || !pwd) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (!newEmail || !pwd) { showToast(t('შეავსეთ ყველა ველი'), 'error'); return; }
     try {
       const res  = await fetch('/api/auth/change-email', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ new_email: newEmail, current_password: pwd }) });
       const data = await res.json();
@@ -1309,7 +1322,7 @@
       document.getElementById('s-email-new').value = '';
       document.getElementById('s-email-pwd').value = '';
       document.getElementById('user-email-display').textContent = data.new_email;
-      showToast('მეილი შეიცვალა', 'success');
+      showToast(t('მეილი შეიცვალა'), 'success');
     } catch { showToast('შეცდომა', 'error'); }
   }
 
@@ -1318,7 +1331,7 @@
     const current = document.getElementById('s-pwd-current').value;
     const newPwd  = document.getElementById('s-pwd-new').value;
     const confirm = document.getElementById('s-pwd-confirm').value;
-    if (!current || !newPwd || !confirm) { showToast('შეავსეთ ყველა ველი', 'error'); return; }
+    if (!current || !newPwd || !confirm) { showToast(t('შეავსეთ ყველა ველი'), 'error'); return; }
     if (newPwd !== confirm) { showToast('ახალი პაროლები არ ემთხვევა', 'error'); return; }
     if (newPwd.length < 6) { showToast('პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს', 'error'); return; }
     try {
@@ -1328,7 +1341,7 @@
       document.getElementById('s-pwd-current').value = '';
       document.getElementById('s-pwd-new').value = '';
       document.getElementById('s-pwd-confirm').value = '';
-      showToast('პაროლი შეიცვალა', 'success');
+      showToast(t('პაროლი შეიცვალა'), 'success');
     } catch { showToast('შეცდომა', 'error'); }
   }
 
@@ -1359,7 +1372,7 @@
         if (!r.ok) { const d = await r.json(); showToast(d.error || 'შეცდომა', 'error'); return; }
       }
       closeModal('reset-pwd-modal');
-      showToast('მონაცემები განახლდა', 'success');
+      showToast(t('მონაცემები განახლდა'), 'success');
       loadTenants();
     } catch { showToast('შეცდომა', 'error'); }
   }
@@ -1376,8 +1389,8 @@
     try {
       const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
-      showToast('English ინფორმაცია შენახულია', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+      showToast(t('English ინფორმაცია შენახულია'), 'success');
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   async function saveEmailTemplateEN() {
@@ -1388,8 +1401,8 @@
     try {
       const res = await fetch('/api/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
-      showToast('English შაბლონი შენახულია', 'success');
-    } catch { showToast('შენახვა ვერ მოხერხდა', 'error'); }
+      showToast(t('English შაბლონი შენახულია'), 'success');
+    } catch { showToast(t('შენახვა ვერ მოხერხდა'), 'error'); }
   }
 
   // ── Settings tabs ────────────────────────────────────────────────────────────
@@ -1419,6 +1432,218 @@
   const savedTheme = localStorage.getItem('invoice-theme') || 'dark';
   applyTheme(savedTheme);
 
+
+  // ── App Language (Georgian / Italian) ────────────────────────────────────────
+  const IT = {
+    // Sidebar
+    'მენიუ': 'Menu',
+    'კლიენტები': 'Clienti',
+    'პროდუქტები': 'Prodotti',
+    'ახალი ინვოისი': 'Nuova Fattura',
+    'ისტორია': 'Storico',
+    'პარამეტრები': 'Impostazioni',
+    'ადმინი': 'Admin',
+    'გასვლა': 'Esci',
+    'სუპერ ადმინი': 'Super Admin',
+    'მომხმარებელი': 'Utente',
+    // Pages
+    'მართეთ თქვენი კლიენტები': 'Gestisci i tuoi clienti',
+    'მართეთ პროდუქტების კატალოგი': 'Gestisci il catalogo prodotti',
+    'შეავსეთ ველები და დააგენერირეთ ინვოისი': 'Compila i campi e genera la fattura',
+    'ყველა გენერირებული ინვოისი': 'Tutte le fatture generate',
+    'კომპანიის პროფილი და კონფიგურაცია': 'Profilo azienda e configurazione',
+    'ყველა რეგისტრირებული კომპანია': 'Tutte le aziende registrate',
+    // Buttons
+    t('კლიენტის დამატება'): 'Aggiungi Cliente',
+    t('პროდუქტის დამატება'): 'Aggiungi Prodotto',
+    'კომპანიის დამატება': 'Aggiungi Azienda',
+    'ინვოისის შექმნა': 'Crea Fattura',
+    'შენახვა': 'Salva',
+    'გაუქმება': 'Annulla',
+    'წაშლა': 'Elimina',
+    'გაგზავნა': 'Invia',
+    'შექმნა': 'Crea',
+    'კავშირის შემოწმება': 'Verifica Connessione',
+    'მეილის შეცვლა': 'Cambia Email',
+    'პაროლის შეცვლა': 'Cambia Password',
+    'შეცვლა': 'Modifica',
+    // Settings tabs
+    'კომპანია': 'Azienda',
+    'ელ. ფოსტა': 'Email',
+    'ინტერფეისი': 'Interfaccia',
+    'ანგარიში': 'Account',
+    // Settings labels
+    'კომპანიის ინფორმაცია — ქართული': 'Informazioni Azienda — ქართული',
+    'კომპანიის ინფორმაცია — English': 'Informazioni Azienda — English',
+    'კომპანიის სახელი': 'Nome Azienda',
+    'კომპანიის სახელი (ინვოისში)': 'Nome Azienda (in fattura)',
+    'ს/კ (საიდენტიფიკაციო კოდი)': 'Codice Fiscale / P.IVA',
+    'მისამართი': 'Indirizzo',
+    'ტელეფონი': 'Telefono',
+    'ელ. მეილი': 'Email',
+    'დირექტორი': 'Direttore',
+    'ბანკი': 'Banca',
+    'ინვოისის საწყისი ნომერი': 'Numero Fattura Iniziale',
+    'პირველი ინვოისი იქნება ამ ნომერი + 1': 'La prima fattura sarà questo numero + 1',
+    'ხელმოწერა': 'Firma',
+    'დააჭირეთ ან ჩააგდეთ PNG/JPG ფაილი (მაქს. 2MB)': 'Clicca o trascina un file PNG/JPG (max 2MB)',
+    'ინტერფეისის თემა': 'Tema Interfaccia',
+    // Email settings
+    'ელ. ფოსტის შაბლონი — ქართული': 'Template Email — ქართული',
+    'ელ. ფოსტის შაბლონი — English': 'Template Email — English',
+    'გამგზავნი მეილი (Outlook-ისთვის)': 'Email Mittente (per Outlook)',
+    'Gmail-ისთვის ეს ველი იგნორირდება.': 'Per Gmail questo campo viene ignorato.',
+    'საგანი (Subject)': 'Oggetto (Subject)',
+    'მეილის ტექსტი': 'Testo Email',
+    'ელ. ფოსტის გაგზავნა (SMTP)': 'Invio Email (SMTP)',
+    'Gmail-ისთვის გამოიყენეთ App Password.': 'Per Gmail usa App Password.',
+    'გამგზავნი მეილი': 'Email Mittente',
+    'პაროლი / App Password': 'Password / App Password',
+    'SMTP სერვერი': 'Server SMTP',
+    'პორტი': 'Porta',
+    // Account
+    'ახალი მეილი ან მომხმარებელი': 'Nuova Email o Username',
+    'მიმდინარე პაროლი (დასადასტურებლად)': 'Password Attuale (per conferma)',
+    'მიმდინარე პაროლი': 'Password Attuale',
+    'ახალი პაროლი': 'Nuova Password',
+    'გაიმეორეთ ახალი პაროლი': 'Ripeti Nuova Password',
+    'გაიმეორეთ': 'Ripeti',
+    // Invoice form
+    'ინვოისის დეტალები': 'Dettagli Fattura',
+    'ინვოისის ნომერი': 'Numero Fattura',
+    'იტვირთება...': 'Caricamento...',
+    'თარიღი': 'Data',
+    'კლიენტი': 'Cliente',
+    'კომპანია': 'Azienda',
+    'პროდუქტები': 'Prodotti',
+    'პროდუქტი': 'Prodotto',
+    'ერთეული': 'U.M.',
+    'რაოდენობა': 'Qtà',
+    'ფასი (₾)': 'Prezzo (₾)',
+    'ინვოისში ვაჩვენო რაოდენობა და ერთეული': 'Mostra quantità e unità in fattura',
+    // History table
+    'ინვოისი #': 'Fattura #',
+    'კლიენტი': 'Cliente',
+    'თანხა': 'Importo',
+    'თარიღი': 'Data',
+    'სტატუსი': 'Stato',
+    t('✓ გაგზავნილი'): '✓ Inviata',
+    t('✕ შეცდომა'): '✕ Errore',
+    t('⏳ მომლოდინე'): '⏳ In Attesa',
+    // Company modal
+    t('კლიენტის დამატება'): 'Aggiungi Cliente',
+    t('კლიენტის რედაქტირება'): 'Modifica Cliente',
+    'სამართლებრივი ფორმა': 'Forma Giuridica',
+    'სახელი': 'Nome',
+    'ს/კ': 'P.IVA',
+    'რამდენიმე მეილის შემთხვევაში გამოყავით მძიმით': 'Per più email separare con virgola',
+    'სტატუსი': 'Stato',
+    'ინვოისის ენა': 'Lingua Fattura',
+    'აქტიური': 'Attivo',
+    'პასიური': 'Passivo',
+    // Product modal
+    t('პროდუქტის დამატება'): 'Aggiungi Prodotto',
+    t('პროდუქტის რედაქტირება'): 'Modifica Prodotto',
+    'ზომის ერთეული': 'Unità di Misura',
+    'ფასი (₾)': 'Prezzo (₾)',
+    'დღგ': 'IVA',
+    'კი': 'Sì',
+    'არა': 'No',
+    // Delete confirm
+    'კლიენტის წაშლა': 'Elimina Cliente',
+    'პროდუქტის წაშლა': 'Elimina Prodotto',
+    'დარწმუნებული ხართ, რომ გსურთ': 'Sei sicuro di voler eliminare',
+    'წაშლა?': '',
+    // PDF modal
+    'ინვოისის გადახედვა': 'Anteprima Fattura',
+    '✕ დახურვა': '✕ Chiudi',
+    // Admin
+    'კომპანიების მართვა': 'Gestione Aziende',
+    'კომპანიის სახელი (შესვლისთვის)': 'Email (per accesso)',
+    'პაროლი': 'Password',
+    'შესვლის მონაცემების შეცვლა': 'Modifica Credenziali',
+    'ახალი მეილი (სურვილისამებრ)': 'Nuova Email (opzionale)',
+    'ახალი პაროლი (სურვილისამებრ)': 'Nuova Password (opzionale)',
+    'დატოვეთ ცარიელი თუ არ იცვლება': 'Lascia vuoto se non cambia',
+    'პაროლის შეცვლა': 'Cambia Password',
+    // Toasts
+    'კლიენტი განახლდა': 'Cliente aggiornato',
+    'კლიენტი დაემატა': 'Cliente aggiunto',
+    'კლიენტი წაიშალა': 'Cliente eliminato',
+    'პროდუქტი განახლდა': 'Prodotto aggiornato',
+    'პროდუქტი დაემატა': 'Prodotto aggiunto',
+    'პროდუქტი წაიშალა': 'Prodotto eliminato',
+    'პარამეტრები შენახულია': 'Impostazioni salvate',
+    'ელ. ფოსტის შაბლონი შენახულია': 'Template email salvato',
+    'English შაბლონი შენახულია': 'Template English salvato',
+    'English ინფორმაცია შენახულია': 'Info English salvata',
+    'ხელმოწერა ატვირთულია': 'Firma caricata',
+    'ინვოისი გაიგზავნა!': 'Fattura inviata!',
+    'მეილი შეიცვალა': 'Email modificata',
+    'პაროლი შეიცვალა': 'Password modificata',
+    'კომპანია დაემატა': 'Azienda aggiunta',
+    'კომპანია წაიშალა': 'Azienda eliminata',
+    'მონაცემები განახლდა': 'Dati aggiornati',
+    // Placeholders / search
+    'კლიენტის ძიება...': 'Cerca cliente...',
+    'პროდუქტის ძიება...': 'Cerca prodotto...',
+    'მოძებნეთ კომპანია...': 'Cerca azienda...',
+    'მოძებნეთ...': 'Cerca...',
+    // Empty states
+    t('კლიენტები ვერ მოიძებნა'): 'Nessun cliente trovato',
+    t('პროდუქტები ვერ მოიძებნა'): 'Nessun prodotto trovato',
+    t('ინვოისები არ არის'): 'Nessuna fattura',
+    t('კომპანიები არ არის'): 'Nessuna azienda',
+    // შემდეგი ნომერი
+    t('შემდეგი ნომერი'): 'Prossimo numero',
+    // Errors
+    'შეავსეთ ყველა ველი': 'Compila tutti i campi',
+    'მეილი არასწორია': 'Email non valida',
+    'სახელი სავალდებულოა': 'Il nome è obbligatorio',
+    'გთხოვთ აირჩიოთ კომპანია': 'Seleziona un'azienda',
+    'გთხოვთ დაამატოთ მინიმუმ ერთი პროდუქტი': 'Aggiungi almeno un prodotto',
+    'შენახვა ვერ მოხერხდა': 'Salvataggio fallito',
+    'წაშლა ვერ მოხერხდა': 'Eliminazione fallita',
+    'გაგზავნა ვერ მოხერხდა': 'Invio fallito',
+    'გენერირება ვერ მოხერხდა': 'Generazione fallita',
+    t('იგზავნება Outlook-ით…'): 'Invio tramite Outlook…',
+    'მიმდინარეობს...': 'In corso...',
+    // Misc
+    'გამარჯობა': 'Buongiorno',
+    'ვერ მოიძებნა': 'Non trovato',
+    t('შემდეგი ნომერი'): 'Prossimo numero',
+    t('შემდეგი ნომერი'): 'Prossimo numero',
+  };
+
+  let appLang = localStorage.getItem('invoice-app-lang') || 'ka';
+
+  function t(ka) {
+    if (appLang === 'it' && IT[ka]) return IT[ka];
+    return ka;
+  }
+
+  function setAppLang(lang) {
+    appLang = lang;
+    localStorage.setItem('invoice-app-lang', lang);
+    document.getElementById('lang-ka').classList.toggle('active', lang === 'ka');
+    document.getElementById('lang-it').classList.toggle('active', lang === 'it');
+    applyTranslations();
+  }
+
+  function applyTranslations() {
+    // Translate all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = t(key);
+    });
+    // Translate placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+  }
+
+  // Apply lang on load
+  setAppLang(appLang);
   init();
 </script>
 </body>
