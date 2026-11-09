@@ -1,0 +1,1 @@
+A Flask invoicing app built for fun for Sawkobi.ge, reducing a full day of invoice preparation to about two hours. Python, PostgreSQL, PDF generation and email delivery.

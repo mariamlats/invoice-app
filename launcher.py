@@ -20,6 +20,10 @@ if os.path.exists(env_path):
     from dotenv import load_dotenv
     load_dotenv(env_path)
 
+# The desktop server binds only to loopback and does not terminate HTTPS.
+os.environ['LOCAL_HTTP'] = 'true'
+os.environ['TRUSTED_HOSTS'] = 'localhost,127.0.0.1'
+
 PORT = 5000
 URL  = 'http://localhost:%d' % PORT
 
@@ -72,3 +76,4 @@ if __name__ == '__main__':
     t = threading.Thread(target=open_browser, daemon=True)
     t.start()
     run_flask()
+
