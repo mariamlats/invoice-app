@@ -1,6 +1,19 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, abort
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from html import escape as xml_escape
+from urllib.parse import urlsplit
+from urllib import request as urllib_request
+from werkzeug.exceptions import HTTPException
+from sqlalchemy.exc import IntegrityError
+from PIL import Image as PILImage, UnidentifiedImageError
+import click
+import warnings
+import re
+from security import (hash_password, check_password, session_stamp, password_is_valid,
+                      LEGACY_HASH, encrypt_credential, decrypt_credential,
+                      smtp_destination, open_smtp)
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
@@ -8,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import os, io, json, base64, sys, hashlib, secrets
+import os, io, json, base64, sys, hashlib, secrets, hmac
 from functools import wraps
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
@@ -29,10 +42,21 @@ if not _db_url:
     raise RuntimeError('DATABASE_URL not set.')
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+_secret_key = os.environ.get('SECRET_KEY', '')
+if len(_secret_key) < 32:
+    raise RuntimeError('Set SECRET_KEY to a persistent random value of at least 32 characters.')
+app.config['SECRET_KEY'] = _secret_key
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
+# Disable secure cookies only for an explicitly configured loopback desktop session.
+_local_http = os.environ.get('LOCAL_HTTP', '').lower() == 'true'
+app.config['SESSION_COOKIE_SECURE'] = not _local_http
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+app.config['MAX_CONTENT_LENGTH'] = 3 * 1024 * 1024
+app.config['MAX_FORM_MEMORY_SIZE'] = 128 * 1024
+app.config['MAX_FORM_PARTS'] = 10
+app.config['TRUSTED_HOSTS'] = [h.strip() for h in os.environ.get(
+    'TRUSTED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 db = SQLAlchemy(app)
 
@@ -41,34 +65,46 @@ SUPABASE_URL         = os.environ.get('SUPABASE_URL', '').rstrip('/')
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 STORAGE_BUCKET       = 'signatures'
 
-def upload_signature_to_supabase(file_bytes: bytes, filename: str, tenant_id: int) -> str:
-    """Upload signature to Supabase Storage, return public path key."""
-    import urllib.request, urllib.error
-    path     = f'tenant_{tenant_id}/{filename}'
-    url      = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}'
-    ext      = filename.rsplit('.', 1)[-1].lower()
-    mimetype = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
-    req  = urllib.request.Request(url, data=file_bytes, method='POST')
-    req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
-    req.add_header('Content-Type', mimetype)
-    req.add_header('x-upsert', 'true')
-    try:
-        urllib.request.urlopen(req)
-        return path
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f'Supabase upload failed: {e.code} {e.read().decode()}')
+class NoRedirect(urllib_request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
-def get_signature_bytes(storage_path: str):
-    """Download signature bytes from Supabase Storage (private bucket via service key)."""
-    import urllib.request, urllib.error
-    url = f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{storage_path}'
-    req = urllib.request.Request(url)
+
+def storage_url(path):
+    parsed = urlsplit(SUPABASE_URL)
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username
+            or parsed.password or parsed.query or parsed.fragment or parsed.path):
+        raise ValueError('Configure a valid HTTPS SUPABASE_URL without a path.')
+    if not SUPABASE_SERVICE_KEY:
+        raise ValueError('Supabase Storage is not configured.')
+    if not re.fullmatch(r'tenant_[1-9][0-9]*/signature\.(png|jpg|jpeg)', path):
+        raise ValueError('Invalid signature storage path.')
+    return f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}'
+
+
+def upload_signature_to_supabase(file_bytes: bytes, filename: str, tenant_id: int) -> str:
+    path = f'tenant_{tenant_id}/{filename}'
+    req = urllib_request.Request(storage_url(path), data=file_bytes, method='POST')
     req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
+    req.add_header('Content-Type', 'image/png')
+    req.add_header('x-upsert', 'true')
+    with urllib_request.build_opener(NoRedirect()).open(req, timeout=10):
+        pass
+    return path
+
+
+def get_signature_bytes(storage_path: str, tenant_id: int):
+    if not storage_path.startswith(f'tenant_{tenant_id}/'):
+        return None
     try:
-        with urllib.request.urlopen(req) as resp:
-            return resp.read()
+        req = urllib_request.Request(storage_url(storage_path))
+        req.add_header('Authorization', f'Bearer {SUPABASE_SERVICE_KEY}')
+        with urllib_request.build_opener(NoRedirect()).open(req, timeout=10) as resp:
+            content = resp.read(2 * 1024 * 1024 + 1)
+        return content if len(content) <= 2 * 1024 * 1024 else None
     except Exception:
         return None
+
 
 # ── Paths & Fonts ─────────────────────────────────────────────────────────────
 if getattr(sys, 'frozen', False):
@@ -90,19 +126,6 @@ else:
     main_font = noto_path if os.path.exists(noto_path) else os.path.join(FONT_DIR, 'DejaVuSans.ttf')
     pdfmetrics.registerFont(TTFont('DejaVu',     main_font))
     pdfmetrics.registerFont(TTFont('DejaVuBold', os.path.join(FONT_DIR, 'DejaVuSans-Bold.ttf')))
-
-# ── Password hashing (no bcrypt dependency) ───────────────────────────────────
-def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    h    = hashlib.sha256((salt + password).encode()).hexdigest()
-    return f'{salt}:{h}'
-
-def check_password(password: str, stored: str) -> bool:
-    try:
-        salt, h = stored.split(':', 1)
-        return hashlib.sha256((salt + password).encode()).hexdigest() == h
-    except Exception:
-        return False
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -236,19 +259,224 @@ class Invoice(db.Model):
             'date':   self.custom_date or self.generated_at.strftime('%d/%m/%Y'),
         }
 
+class AuthFailure(db.Model):
+    __tablename__ = 'auth_failure'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(64), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+def auth_keys(identifier):
+    # Hash account identifiers and IPs rather than recording them in this table.
+    return [hashlib.sha256(value.encode()).hexdigest() for value in
+            ('account:' + identifier, 'ip:' + (request.remote_addr or 'unknown'))]
+
+
+def auth_attempt_allowed(identifier):
+    cutoff = datetime.utcnow() - timedelta(minutes=15)
+    AuthFailure.query.filter(AuthFailure.created_at < cutoff).delete()
+    db.session.commit()
+    return all(AuthFailure.query.filter(AuthFailure.key == key,
+                                       AuthFailure.created_at >= cutoff).count() < limit
+               for key, limit in zip(auth_keys(identifier), (10, 50)))
+
+
+def record_auth_failure(identifier):
+    for key in auth_keys(identifier):
+        db.session.add(AuthFailure(key=key))
+    db.session.commit()
+
+
+def csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    return session['csrf_token']
+
+
+@app.context_processor
+def security_template_context():
+    return {'csrf_token': csrf_token}
+
+
+@app.before_request
+def protect_requests():
+    if _local_http and request.remote_addr not in ('127.0.0.1', '::1'):
+        abort(403, 'LOCAL_HTTP is restricted to loopback connections.')
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        supplied = request.headers.get('X-CSRF-Token', '')
+        expected = session.get('csrf_token', '')
+        if (not re.fullmatch(r'[0-9a-f]{64}', supplied) or not expected
+                or not hmac.compare_digest(supplied, expected)):
+            abort(403, 'Session expired or invalid CSRF token. Reload the page.')
+        if request.is_json:
+            data = request.get_json()
+            if not isinstance(data, dict):
+                abort(400, 'JSON body must be an object.')
+            for key, value in data.items():
+                limit = 10000 if key in ('email_body', 'email_body_en') else 1024 if 'password' in key else 500 if 'address' in key or key in ('email_subject', 'email_subject_en') else 255
+                if isinstance(value, str) and len(value) > limit:
+                    abort(400, 'Input exceeds the allowed length.')
+                if isinstance(value, (dict, list)) and key != 'items':
+                    abort(400, 'Unexpected nested input.')
+                if key not in ('items', 'company_id', 'tenant_id', 'invoice_prefix',
+                               'smtp_port', 'show_details') and not isinstance(value, str):
+                    abort(400, 'Text fields must contain strings.')
+        elif request.content_length and request.endpoint != 'upload_signature':
+            abort(415, 'Use application/json for API requests.')
+
+
+@app.after_request
+def security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; "
+        "frame-src 'self' blob:; connect-src 'self'; object-src 'none'; "
+        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    )
+    return response
+
+
+@app.errorhandler(HTTPException)
+def http_error(error):
+    db.session.rollback()
+    if request.path.startswith('/api/'):
+        return jsonify({'error': error.description}), error.code
+    return error
+
+
+@app.errorhandler(ValueError)
+@app.errorhandler(TypeError)
+@app.errorhandler(KeyError)
+def invalid_input(error):
+    db.session.rollback()
+    return jsonify({'error': 'Invalid input or missing server configuration.'}), 400
+
+
+@app.errorhandler(IntegrityError)
+def integrity_error(error):
+    db.session.rollback()
+    return jsonify({'error': 'The update conflicts with an existing record.'}), 409
+
+
+def require_text(data, field, maximum=255):
+    value = data.get(field)
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        abort(400, f'{field} is required and must contain at most {maximum} characters.')
+    return value.strip()
+
+
+def validate_email(value, use_abort=True):
+    if (not isinstance(value, str) or len(value) > 255
+            or not re.fullmatch(r'[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+', value)):
+        if use_abort:
+            abort(400, 'Enter a valid email address.')
+        raise ValueError('Enter a valid email address.')
+
+
+def validate_company(data):
+    for field, maximum in [('name', 255), ('vat', 100), ('address', 500), ('email', 255)]:
+        require_text(data, field, maximum)
+    for email in data['email'].split(','):
+        validate_email(email.strip())
+    if data.get('language', 'ka') not in ('ka', 'en', 'it'):
+        abort(400, 'Unsupported invoice language.')
+    if data.get('status', 'active') not in ('active', 'passive'):
+        abort(400, 'Unsupported company status.')
+    if len(data.get('legal_form', '')) > 20:
+        abort(400, 'Legal form is too long.')
+
+
+def decimal_value(value):
+    try:
+        value = str(value)
+        if len(value) > 50:
+            raise ValueError
+        number = Decimal(value.replace(',', '.'))
+        if not number.is_finite() or number < 0 or number > Decimal('1000000000000'):
+            raise ValueError
+        return number
+    except (InvalidOperation, ValueError):
+        abort(400, 'Amounts must be finite, non-negative numbers within the supported range.')
+
+
+def validate_product(data):
+    require_text(data, 'name')
+    require_text(data, 'unit', 50)
+    decimal_value(data.get('price') or '0')
+    if data.get('vat', 'no') not in ('yes', 'no'):
+        abort(400, 'Unsupported VAT setting.')
+
+
+def validate_invoice_items(items):
+    if not isinstance(items, list) or not 1 <= len(items) <= 200:
+        abort(400, 'An invoice must contain between 1 and 200 items.')
+    checked, total = [], Decimal('0')
+    for item in items:
+        if not isinstance(item, dict):
+            abort(400, 'Each invoice item must be an object.')
+        name = require_text(item, 'name')
+        unit = item.get('unit', '')
+        if not isinstance(unit, str) or len(unit) > 50:
+            abort(400, 'Invalid unit.')
+        qty, price = decimal_value(item.get('qty', '0')), decimal_value(item.get('price', '0'))
+        line_total = (qty * price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        if line_total > Decimal('1000000000000'):
+            abort(400, 'Invoice total exceeds the supported range.')
+        total += line_total
+        checked.append({'name': name, 'unit': unit, 'qty': str(qty),
+                        'price': str(price), 'total': format(line_total, '.2f')})
+    if total > Decimal('1000000000000'):
+        abort(400, 'Invoice total exceeds the supported range.')
+    return checked, format(total, '.2f')
+
+
+def sanitize_signature(content):
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', PILImage.DecompressionBombWarning)
+            with PILImage.open(io.BytesIO(content)) as image:
+                if image.format not in ('PNG', 'JPEG') or image.width * image.height > 4000000:
+                    raise ValueError('Signature must be a PNG/JPEG image of at most 4 megapixels.')
+                image.load()
+                output = io.BytesIO()
+                image.convert('RGBA' if 'A' in image.getbands() else 'RGB').save(output, format='PNG')
+                clean = output.getvalue()
+                if len(clean) > 2 * 1024 * 1024:
+                    raise ValueError('Decoded signature exceeds 2 MB.')
+                return clean
+    except (UnidentifiedImageError, OSError, PILImage.DecompressionBombError,
+            PILImage.DecompressionBombWarning) as exc:
+        raise ValueError('Upload a valid PNG or JPEG signature.') from exc
+
+
+def pdf_text(value):
+    """Escape database/user content before inserting it into ReportLab markup."""
+    return xml_escape('' if value is None else str(value), quote=True)
+
+
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
 def current_user():
     uid = session.get('user_id')
     if not uid:
         return None
-    return db.session.get(User, uid)
+    user = db.session.get(User, uid)
+    expected = session_stamp(user.password_hash, app.secret_key) if user else ''
+    if not user or not hmac.compare_digest(session.get('auth_stamp', ''), expected):
+        session.clear()
+        return None
+    return user
 
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not current_user():
-            if request.is_json:
+            if request.path.startswith('/api/'):
                 return jsonify({'error': 'Unauthorized'}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
@@ -297,7 +525,8 @@ def build_pdf(invoice, show_details=True):
     GRAY  = colors.HexColor('#CCCCCC')
     LGRID = colors.HexColor('#A8C8E8')
 
-    def p(text, size=9, bold=False, align='LEFT', color=colors.black, leading=None):
+    def p(text, size=9, bold=False, align='LEFT', color=colors.black, leading=None, markup=False):
+        text = str(text) if markup else pdf_text(text).replace('\n', '<br/>')
         return Paragraph(text, ParagraphStyle('x',
             fontName='DejaVuBold' if bold else 'DejaVu',
             fontSize=size, textColor=color,
@@ -307,8 +536,8 @@ def build_pdf(invoice, show_details=True):
     # Title bar — use tenant name
     title_name = (tenant.footer_name_en or tenant.footer_name or tenant.name) if (tenant and is_en) else (tenant.footer_name or tenant.name) if tenant else 'Invoice'
     inv_label = "Invoice N" if is_en else ("Fattura N" if is_it else "ინვოისი N")
-    t1 = Table([[p(f'{title_name} &nbsp;&nbsp; {inv_label} {invoice.number}',
-                   size=15, bold=True, align='CENTER', color=colors.white)]],
+    t1 = Table([[p(f'{pdf_text(title_name)} &nbsp;&nbsp; {inv_label} {invoice.number}',
+                   size=15, bold=True, align='CENTER', color=colors.white, markup=True)]],
                colWidths=[uw])
     t1.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),BLUE),
@@ -337,12 +566,12 @@ def build_pdf(invoice, show_details=True):
     else:
         full_name = '%s %s' % (c.legal_form or 'შპს', c.name)
     if is_en:
-        ct = '<b>%s</b><br/>ID: %s<br/>Address: %s<br/>Email: %s' % (full_name, c.vat, c.address, c.email)
+        ct = '<b>%s</b><br/>ID: %s<br/>Address: %s<br/>Email: %s' % tuple(pdf_text(v) for v in (full_name, c.vat, c.address, c.email))
     elif is_it:
-        ct = '<b>%s</b><br/>P.IVA: %s<br/>Indirizzo: %s<br/>Email: %s' % (full_name, c.vat, c.address, c.email)
+        ct = '<b>%s</b><br/>P.IVA: %s<br/>Indirizzo: %s<br/>Email: %s' % tuple(pdf_text(v) for v in (full_name, c.vat, c.address, c.email))
     else:
-        ct = '<b>%s</b><br/>ს/კ: %s<br/>იურიდიული მისამართი: %s<br/>ელ. მეილი: %s' % (full_name, c.vat, c.address, c.email)
-    t3 = Table([[p(ct, leading=17, size=11)]], colWidths=[uw])
+        ct = '<b>%s</b><br/>ს/კ: %s<br/>იურიდიული მისამართი: %s<br/>ელ. მეილი: %s' % tuple(pdf_text(v) for v in (full_name, c.vat, c.address, c.email))
+    t3 = Table([[p(ct, leading=17, size=11, markup=True)]], colWidths=[uw])
     t3.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),colors.white),
         ('BOX',(0,0),(-1,-1),0.5,GRAY),
@@ -422,14 +651,14 @@ def build_pdf(invoice, show_details=True):
         _address = (tenant.footer_address_en or tenant.footer_address) if is_en else tenant.footer_address
         _bank    = (tenant.footer_bank_en    or tenant.footer_bank)    if is_en else tenant.footer_bank
         _director= (tenant.footer_director_en or tenant.footer_director) if is_en else tenant.footer_director
-        if _name:    lines.append(f'<b>{_name}</b>')
-        if tenant.footer_vat: lines.append(f'ID: {tenant.footer_vat}' if is_en else (f'P.IVA: {tenant.footer_vat}' if is_it else f'ს/კ {tenant.footer_vat}'))
-        if _address: lines.append(_address)
-        if tenant.footer_phone: lines.append(f'Tel: {tenant.footer_phone}' if is_en else (f'Tel: {tenant.footer_phone}' if is_it else f'ტელ: {tenant.footer_phone}'))
-        if tenant.footer_email: lines.append(f'Email: {tenant.footer_email}' if is_en else (f'Email: {tenant.footer_email}' if is_it else f'მეილი: {tenant.footer_email}'))
-        if _bank:    lines.append(f'Bank: {_bank}' if is_en else (f'Banca: {_bank}' if is_it else f'ბანკი: {_bank}'))
-        if tenant.footer_bank_code: lines.append(f'Bank code: {tenant.footer_bank_code}')
-        if tenant.footer_iban: lines.append(f'A/A: {tenant.footer_iban}')
+        if _name:    lines.append(f'<b>{pdf_text(_name)}</b>')
+        if tenant.footer_vat: lines.append(f'ID: {pdf_text(tenant.footer_vat)}' if is_en else (f'P.IVA: {pdf_text(tenant.footer_vat)}' if is_it else f'ს/კ {pdf_text(tenant.footer_vat)}'))
+        if _address: lines.append(pdf_text(_address))
+        if tenant.footer_phone: lines.append(f'Tel: {pdf_text(tenant.footer_phone)}' if is_en else (f'Tel: {pdf_text(tenant.footer_phone)}' if is_it else f'ტელ: {pdf_text(tenant.footer_phone)}'))
+        if tenant.footer_email: lines.append(f'Email: {pdf_text(tenant.footer_email)}' if is_en else (f'Email: {pdf_text(tenant.footer_email)}' if is_it else f'მეილი: {pdf_text(tenant.footer_email)}'))
+        if _bank:    lines.append(f'Bank: {pdf_text(_bank)}' if is_en else (f'Banca: {pdf_text(_bank)}' if is_it else f'ბანკი: {pdf_text(_bank)}'))
+        if tenant.footer_bank_code: lines.append(f'Bank code: {pdf_text(tenant.footer_bank_code)}')
+        if tenant.footer_iban: lines.append(f'A/A: {pdf_text(tenant.footer_iban)}')
         executor = '<br/>'.join(lines)
         director = _director or ''
     else:
@@ -439,13 +668,13 @@ def build_pdf(invoice, show_details=True):
     # Signature from Supabase
     sig_img = p('')
     if tenant and tenant.signature_path:
-        sig_bytes = get_signature_bytes(tenant.signature_path)
+        sig_bytes = get_signature_bytes(tenant.signature_path, tenant.id)
         if sig_bytes:
             sig_buf = io.BytesIO(sig_bytes)
             sig_img = Image(sig_buf, width=6*cm, height=6*cm)
 
     rc = Table([
-        [p(f'Director<br/>{director}' if is_en else (f'Direttore<br/>{director}' if is_it else f'დირექტორი<br/>{director}'), size=10, leading=15, align='CENTER')],
+        [p(f'Director<br/>{pdf_text(director)}' if is_en else (f'Direttore<br/>{pdf_text(director)}' if is_it else f'დირექტორი<br/>{pdf_text(director)}'), size=10, leading=15, align='CENTER', markup=True)],
         [sig_img],
     ], colWidths=[uw*0.38])
     rc.setStyle(TableStyle([
@@ -453,7 +682,7 @@ def build_pdf(invoice, show_details=True):
         ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
         ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
     ]))
-    t7 = Table([[p(executor, size=10, leading=15), rc]], colWidths=[uw*0.62, uw*0.38])
+    t7 = Table([[p(executor, size=10, leading=15, markup=True), rc]], colWidths=[uw*0.62, uw*0.38])
     t7.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),colors.white),
         ('BOX',(0,0),(-1,-1),0.5,GRAY),('LINEAFTER',(0,0),(0,-1),0.5,GRAY),
@@ -487,14 +716,23 @@ def do_login():
     d     = request.get_json()
     raw   = (d.get('email') or '').strip().lower()
     pwd   = d.get('password') or ''
-    # Allow login with full email OR just the username part (before @)
+    if not auth_attempt_allowed(raw):
+        return jsonify({'error': 'Too many attempts. Try again in 15 minutes.'}), 429
     user  = User.query.filter_by(email=raw).first()
     if not user and '@' not in raw:
         # Try matching username portion of any email
-        user = User.query.filter(User.email.like(raw + '@%')).first()
+        user = User.query.filter(User.email.startswith(raw + '@', autoescape=True)).first()
     if not user or not check_password(pwd, user.password_hash):
+        record_auth_failure(raw)
         return jsonify({'error': 'არასწორი მეილი ან პაროლი'}), 401
+    if LEGACY_HASH.fullmatch(user.password_hash):
+        # Upgrade legacy hashes without forcing existing users to reset immediately.
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(pwd, method='scrypt')
+        db.session.commit()
     session.clear()
+    session.permanent = True
+    session['auth_stamp'] = session_stamp(user.password_hash, app.secret_key)
     session['user_id']   = user.id
     session['tenant_id'] = user.tenant_id
     session['role']      = user.role
@@ -539,12 +777,16 @@ def admin_create_tenant():
         return jsonify({'error': 'Forbidden'}), 403
     d     = request.get_json()
     email = (d.get('email') or '').strip().lower()
-    pwd   = (d.get('password') or '').strip()
+    pwd   = d.get('password') or ''
     name  = (d.get('name') or '').strip()
     if not email or not pwd or not name:
         return jsonify({'error': 'სახელი, მეილი და პაროლი სავალდებულოა'}), 400
+    validate_email(email)
+    if not password_is_valid(pwd):
+        abort(400, 'Passwords must contain 12 to 1024 characters.')
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
+    require_text(d, 'name')
     tenant = Tenant(name=name)
     db.session.add(tenant)
     db.session.flush()
@@ -559,6 +801,8 @@ def admin_create_tenant():
 def admin_delete_tenant(tid):
     if current_user().role != 'superadmin':
         return jsonify({'error': 'Forbidden'}), 403
+    if tid == current_user().tenant_id:
+        abort(400, 'You cannot delete your own administrator tenant.')
     tenant = db.session.get(Tenant, tid)
     if not tenant:
         return jsonify({'error': 'Not found'}), 404
@@ -622,16 +866,20 @@ def upload_signature():
     ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
     if ext not in ('png', 'jpg', 'jpeg'):
         return jsonify({'error': 'მხოლოდ PNG ან JPG'}), 400
-    file_bytes = f.read()
+    file_bytes = f.read(2 * 1024 * 1024 + 1)
     if len(file_bytes) > 2 * 1024 * 1024:
         return jsonify({'error': 'ფაილი 2MB-ზე მეტია'}), 400
     try:
-        path = upload_signature_to_supabase(file_bytes, f'signature.{ext}', u.tenant_id)
+        file_bytes = sanitize_signature(file_bytes)
+        path = upload_signature_to_supabase(file_bytes, 'signature.png', u.tenant_id)
         t.signature_path = path
         db.session.commit()
         return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception:
+        app.logger.error('Signature upload failed.')
+        return jsonify({'error': 'Signature upload failed. Check storage configuration.'}), 502
 
 @app.route('/api/settings/signature', methods=['GET'])
 @login_required
@@ -640,7 +888,7 @@ def get_signature():
     t = db.session.get(Tenant, u.tenant_id)
     if not t or not t.signature_path:
         return jsonify({'error': 'არ არის'}), 404
-    sig_bytes = get_signature_bytes(t.signature_path)
+    sig_bytes = get_signature_bytes(t.signature_path, t.id)
     if not sig_bytes:
         return jsonify({'error': 'ვერ ჩაიტვირთა'}), 404
     ext = t.signature_path.rsplit('.', 1)[-1].lower()
@@ -658,10 +906,12 @@ def save_smtp():
     t.smtp_email    = (d.get('smtp_email') or '').strip() or None
     t.smtp_host     = (d.get('smtp_host') or '').strip() or None
     t.smtp_port     = int(d.get('smtp_port') or 465)
+    validate_email(t.smtp_email)
+    smtp_destination(t.smtp_host, t.smtp_port)
     # Only update password if a new one was provided
-    new_pwd = (d.get('smtp_password') or '').strip()
+    new_pwd = d.get('smtp_password') or ''
     if new_pwd:
-        t.smtp_password = new_pwd
+        t.smtp_password = encrypt_credential(new_pwd)
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -672,36 +922,28 @@ def test_smtp():
     t = db.session.get(Tenant, u.tenant_id)
     if t.smtp_email and t.smtp_password and t.smtp_host:
         try:
-            import smtplib
-            host = t.smtp_host
-            port = int(t.smtp_port or 587)
-            if port == 465:
-                srv = smtplib.SMTP_SSL(host, port, timeout=10)
-            else:
-                srv = smtplib.SMTP(host, port, timeout=10)
-                srv.ehlo()
-                srv.starttls()
-                srv.ehlo()
-            srv.login(t.smtp_email, t.smtp_password)
-            srv.quit()
+            with open_smtp(t.smtp_host, int(t.smtp_port or 465)) as srv:
+                srv.login(t.smtp_email, decrypt_credential(t.smtp_password))
             return jsonify({'ok': True})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 400
+        except Exception:
+            return jsonify({'error': 'SMTP connection failed. Check host, TLS and credentials.'}), 400
     else:
         try:
             import win32com.client
             outlook = win32com.client.Dispatch('Outlook.Application')
             outlook.GetNamespace('MAPI')
             return jsonify({'ok': True})
-        except Exception as e:
-            return jsonify({'error': f'Outlook მიუწვდომელია: {str(e)}'}), 400
+        except Exception:
+            return jsonify({'error': 'Outlook is unavailable on this computer.'}), 400
 
 @app.route('/api/invoices/<int:inv_id>/send', methods=['POST'])
 @login_required
 def send_invoice(inv_id):
     u = current_user()
     t = db.session.get(Tenant, u.tenant_id)
-    inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).first_or_404()
+    inv = Invoice.query.filter_by(id=inv_id, tenant_id=u.tenant_id).with_for_update().first_or_404()
+    if inv.sent:
+        abort(409, 'This invoice has already been sent.')
 
     try:
         pdf_data = build_pdf(inv)
@@ -739,18 +981,9 @@ def send_invoice(inv_id):
             msg.set_content(body)
             msg.add_attachment(pdf_data, maintype='application', subtype='pdf',
                                filename=f'invoice_{inv.number}.pdf')
-            host = t.smtp_host
-            port = int(t.smtp_port or 587)
-            if port == 465:
-                srv = smtplib.SMTP_SSL(host, port, timeout=15)
-            else:
-                srv = smtplib.SMTP(host, port, timeout=15)
-                srv.ehlo()
-                srv.starttls()
-                srv.ehlo()
-            srv.login(t.smtp_email, t.smtp_password)
-            srv.send_message(msg, to_addrs=recipients)
-            srv.quit()
+            with open_smtp(t.smtp_host, int(t.smtp_port or 465)) as srv:
+                srv.login(t.smtp_email, decrypt_credential(t.smtp_password))
+                srv.send_message(msg, to_addrs=recipients)
         else:
             # ── Outlook path (local Windows only) ─────────────────────────
             import win32com.client, tempfile, os, pythoncom
@@ -782,10 +1015,10 @@ def send_invoice(inv_id):
         inv.send_error = None
         db.session.commit()
         return jsonify({'ok': True})
-    except Exception as e:
-        inv.send_error = str(e)[:255]
+    except Exception:
+        inv.send_error = 'Delivery failed. Check mail configuration before retrying.'
         db.session.commit()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': inv.send_error}), 400
 # ── Companies ─────────────────────────────────────────────────────────────────
 
 @app.route('/api/companies', methods=['GET'])
@@ -800,6 +1033,7 @@ def get_companies():
 def create_company():
     u  = current_user()
     d  = request.get_json()
+    validate_company(d)
     co = Company(tenant_id=u.tenant_id,
                  name=d['name'].strip(), vat=d['vat'].strip(),
                  address=d['address'].strip(), email=d['email'].strip(),
@@ -814,6 +1048,7 @@ def update_company(cid):
     u  = current_user()
     co = Company.query.filter_by(id=cid, tenant_id=u.tenant_id).first_or_404()
     d  = request.get_json()
+    validate_company(d)
     email = d['email'].strip()
     for e in email.split(','):
         if '@' not in e.strip():
@@ -852,6 +1087,7 @@ def get_products():
 def create_product():
     u  = current_user()
     d  = request.get_json()
+    validate_product(d)
     pr = Product(tenant_id=u.tenant_id,
                  name=d['name'].strip(), unit=d['unit'].strip(),
                  price=d.get('price','').strip() or '0', vat=d.get('vat','no'))
@@ -864,6 +1100,7 @@ def update_product(pid):
     u  = current_user()
     pr = Product.query.filter_by(id=pid, tenant_id=u.tenant_id).first_or_404()
     d  = request.get_json()
+    validate_product(d)
     pr.name=d['name'].strip(); pr.unit=d['unit'].strip()
     pr.price=d.get('price','').strip() or '0'; pr.vat=d.get('vat','no')
     db.session.commit()
@@ -894,12 +1131,17 @@ def generate_invoice():
         company     = Company.query.filter_by(id=d['company_id'], tenant_id=u.tenant_id).first_or_404()
         custom_date = d.get('date', '').strip()
         items       = d.get('items', [])
-        total = 0.0
-        for item in items:
-            try: total += float(str(item.get('total','0')).replace(',','.'))
-            except: pass
-        amount_str   = ('%.2f' % total) if total else '0.00'
+        items, amount_str = validate_invoice_items(items)
+        if custom_date:
+            try:
+                datetime.strptime(custom_date, '%d/%m/%Y')
+            except ValueError:
+                abort(400, 'Invoice date must use DD/MM/YYYY.')
         show_details = d.get('show_details', True)
+        if not isinstance(show_details, bool):
+            abort(400, 'show_details must be a boolean.')
+        # Serialize number allocation per tenant on PostgreSQL.
+        db.session.execute(db.select(Tenant).where(Tenant.id == u.tenant_id).with_for_update()).scalar_one()
         inv = Invoice(
             tenant_id   = u.tenant_id,
             number      = next_invoice_number(u.tenant_id),
@@ -908,12 +1150,17 @@ def generate_invoice():
             items       = json.dumps(items, ensure_ascii=False),
             custom_date = custom_date if custom_date else None,
         )
-        db.session.add(inv); db.session.commit()
+        db.session.add(inv); db.session.flush()
         pdf_b64 = base64.b64encode(build_pdf(inv, show_details=show_details)).decode()
+        db.session.commit()
         return jsonify({'invoice_id': inv.id, 'invoice_number': inv.number, 'pdf': pdf_b64})
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+    except HTTPException:
+        db.session.rollback()
+        raise
+    except Exception:
+        db.session.rollback()
+        app.logger.error('Invoice generation failed.')
+        return jsonify({'error': 'Invoice generation failed.'}), 500
 
 @app.route('/api/invoices', methods=['GET'])
 @login_required
@@ -940,12 +1187,17 @@ def change_password():
     d   = request.get_json()
     cur = d.get('current_password', '')
     new = d.get('new_password', '')
+    if not auth_attempt_allowed(u.email):
+        return jsonify({'error': 'Too many attempts. Try again in 15 minutes.'}), 429
     if not check_password(cur, u.password_hash):
+        record_auth_failure(u.email)
         return jsonify({'error': 'მიმდინარე პაროლი არასწორია'}), 400
-    if len(new) < 6:
-        return jsonify({'error': 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს'}), 400
+    if not password_is_valid(new):
+        return jsonify({'error': 'Passwords must contain 12 to 1024 characters.'}), 400
     u.password_hash = hash_password(new)
     db.session.commit()
+    if u.id == session.get('user_id'):
+        session['auth_stamp'] = session_stamp(u.password_hash, app.secret_key)
     return jsonify({'ok': True})
 
 @app.route('/api/auth/change-email', methods=['POST'])
@@ -955,10 +1207,12 @@ def change_email():
     d     = request.get_json()
     cur   = d.get('current_password', '')
     email = (d.get('new_email') or '').strip().lower()
+    if not auth_attempt_allowed(u.email):
+        return jsonify({'error': 'Too many attempts. Try again in 15 minutes.'}), 429
     if not check_password(cur, u.password_hash):
+        record_auth_failure(u.email)
         return jsonify({'error': 'მიმდინარე პაროლი არასწორია'}), 400
-    if len(email) < 3:
-        return jsonify({'error': 'მინიმუმ 3 სიმბოლო'}), 400
+    validate_email(email)
     if User.query.filter(User.email == email, User.id != u.id).first():
         return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
     u.email = email
@@ -973,13 +1227,15 @@ def admin_reset_password(tid):
         return jsonify({'error': 'Forbidden'}), 403
     d   = request.get_json()
     new = d.get('new_password', '')
-    if len(new) < 6:
-        return jsonify({'error': 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს'}), 400
+    if not password_is_valid(new):
+        return jsonify({'error': 'Passwords must contain 12 to 1024 characters.'}), 400
     u = User.query.filter_by(tenant_id=tid).first()
     if not u:
         return jsonify({'error': 'User not found'}), 404
     u.password_hash = hash_password(new)
     db.session.commit()
+    if u.id == session.get('user_id'):
+        session['auth_stamp'] = session_stamp(u.password_hash, app.secret_key)
     return jsonify({'ok': True})
 
 @app.route('/api/admin/tenants/<int:tid>/reset-email', methods=['POST'])
@@ -989,8 +1245,7 @@ def admin_reset_email(tid):
         return jsonify({'error': 'Forbidden'}), 403
     d     = request.get_json()
     email = (d.get('new_email') or '').strip().lower()
-    if len(email) < 3:
-        return jsonify({'error': 'მინიმუმ 3 სიმბოლო'}), 400
+    validate_email(email)
     if User.query.filter(User.email == email, User.tenant_id != tid).first():
         return jsonify({'error': 'ეს მეილი უკვე გამოყენებულია'}), 400
     u = User.query.filter_by(tenant_id=tid).first()
@@ -1051,18 +1306,47 @@ def run_migrations():
         except Exception:
             pass
 
+    if db.engine.dialect.name == 'postgresql':
+        # Older desktop builds used VARCHAR(255); encrypted tokens need more room.
+        with db.engine.begin() as conn:
+            conn.execute(sqlalchemy.text(
+                'ALTER TABLE tenant ALTER COLUMN smtp_password TYPE VARCHAR(500)'
+            ))
+
 def ensure_superadmin():
-    """Create superadmin tenant + user if none exists."""
-    if User.query.filter_by(role='superadmin').first():
+    """Bootstrap only from explicitly supplied credentials; never print passwords."""
+    existing = User.query.filter_by(role='superadmin').first()
+    if existing and not check_password('changeme123', existing.password_hash):
         return
-    sa_email = os.environ.get('SUPERADMIN_EMAIL', 'admin@invoiceapp.com')
-    sa_pwd   = os.environ.get('SUPERADMIN_PASSWORD', 'changeme123')
-    t = Tenant(name='Super Admin', invoice_prefix=90000)
-    db.session.add(t); db.session.flush()
-    u = User(tenant_id=t.id, email=sa_email,
-             password_hash=hash_password(sa_pwd), role='superadmin')
-    db.session.add(u); db.session.commit()
-    print(f'[INIT] Superadmin created: {sa_email} / {sa_pwd}')
+    email = os.environ.get('SUPERADMIN_EMAIL', '').strip().lower()
+    password = os.environ.get('SUPERADMIN_PASSWORD', '')
+    if not email or not password_is_valid(password):
+        raise RuntimeError('Set SUPERADMIN_EMAIL and a SUPERADMIN_PASSWORD of at least 12 characters to bootstrap or replace the old default administrator.')
+    validate_email(email, use_abort=False)
+    if existing:
+        existing.email = email
+        existing.password_hash = hash_password(password)
+    else:
+        tenant = Tenant(name='Super Admin', invoice_prefix=90000)
+        db.session.add(tenant)
+        db.session.flush()
+        db.session.add(User(tenant_id=tenant.id, email=email,
+                            password_hash=hash_password(password), role='superadmin'))
+    db.session.commit()
+    app.logger.info('Administrator initialised from environment configuration.')
+
+
+@app.cli.command('encrypt-smtp-passwords')
+def encrypt_smtp_passwords():
+    """Encrypt legacy plaintext SMTP credentials using the external Fernet key."""
+    count = 0
+    for tenant in Tenant.query.filter(Tenant.smtp_password.isnot(None)).all():
+        if tenant.smtp_password and not tenant.smtp_password.startswith('fernet:'):
+            tenant.smtp_password = encrypt_credential(tenant.smtp_password)
+            count += 1
+    db.session.commit()
+    click.echo(f'Encrypted SMTP credentials for {count} tenant(s).')
+
 
 with app.app_context():
     db.create_all()
@@ -1070,4 +1354,5 @@ with app.app_context():
     ensure_superadmin()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='127.0.0.1', debug=False)
+

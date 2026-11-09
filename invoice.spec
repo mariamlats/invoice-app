@@ -17,6 +17,9 @@ a = Analysis(
     ],
     hiddenimports=[
         'app',
+        'security',
+        'cryptography.fernet',
+        'PIL.Image',
         'flask',
         'flask_sqlalchemy',
         'sqlalchemy',
